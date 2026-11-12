@@ -2,10 +2,10 @@
 
 ## 1. 环境与启动
 
-> 使用最终提交包时，可直接双击 `system\启动系统.bat`：脚本会自动切换目录、检查/安装依赖、启动服务并打开浏览器。
+> 使用最终提交包时，可直接双击仓库根目录的 `启动系统.bat`：脚本会自动切换目录、检查/安装依赖、启动服务并打开浏览器。
 
 ```powershell
-cd "C:\Users\14407\Desktop\作业\软件工程\智慧自习室\system\v1.0"
+cd src
 python -m pip install -r requirements.txt
 python app.py
 ```
@@ -59,7 +59,7 @@ python app.py
 ## 4. 测试与全量覆盖
 
 ```powershell
-cd "C:\Users\14407\Desktop\作业\软件工程\智慧自习室\system\v1.0"
+cd src
 python -m pytest -q
 ```
 
