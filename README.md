@@ -13,7 +13,21 @@
 | 周俊楠 | 交叉审查人 |
 | 杨子涵 | 业务确认人 |
 
+## 从 GitHub 获取并运行
+
+1. 获取代码：`git clone https://github.com/TTTough/xiangmu1.git`，或在 GitHub 页面点 **Code → Download ZIP** 后解压。
+2. 把项目解压到本地任意目录（路径含中文也可以）。
+3. 双击根目录的 `启动系统.bat`。
+4. 前置条件：**Windows**（10/11）+ **Python 3.13**，安装 Python 时勾选 *Add Python to PATH*。
+5. 首次运行会自动执行 `pip install -r requirements.txt`，并在 `src/data/app.db` 生成演示数据库（已有数据不会被覆盖）。
+6. 浏览器自动打开 `http://127.0.0.1:5012/`；停止服务按 **Ctrl+C** 或直接关闭命令行窗口。
+7. GitHub 网页预览、Codespaces、Linux 与 macOS **不能**直接运行这个 `.bat`；这些环境请按下方“快速启动”手动执行命令。
+
+双击启动失败（Python 未加 PATH、端口 5012 被占用、依赖安装失败、想重置演示数据）时，见 [docs/guides/launcher.md](docs/guides/launcher.md)。
+
 ## 快速启动
+
+Windows 用户可直接双击仓库根目录的 `启动系统.bat`，脚本会自动进入 `src`、安装依赖、打开浏览器并启动 5012。
 
 ```powershell
 cd src
