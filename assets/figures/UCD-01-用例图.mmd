@@ -1,0 +1,55 @@
+flowchart LR
+    subgraph ACT["参与者"]
+        direction TB
+        U["学生<br/>R-01"]
+        M["自习室管理员<br/>R-02"]
+        SA["系统管理员<br/>R-03"]
+        L["后勤/场馆管理部门<br/>R-04"]
+    end
+
+    subgraph SYS["智慧自习室预约与管理系统"]
+        direction TB
+        UC01(["UC-01 登录与身份认证"])
+        UC02(["UC-02 座位资源与状态维护"])
+        UC03(["UC-03 查询空闲座位"])
+        UC04(["UC-04 预约座位"])
+        UC05(["UC-05 取消预约"])
+        UC06(["UC-06 签到"])
+        UC07(["UC-07 签退"])
+        UC08(["UC-08 自动违约处理"])
+        UC09(["UC-09 查询与申诉违约记录"])
+        UC10(["UC-10 实时座位管理与手动违约登记"])
+        UC11(["UC-11 投诉提交与处理"])
+        UC12(["UC-12 评价管理"])
+        UC13(["UC-13 黑名单管理"])
+        UC14(["UC-14 数据分析与统计刷新"])
+        UC15(["UC-15 通知发送"])
+        UC16(["UC-16 规则参数配置"])
+        UC17(["UC-17 审计日志查询"])
+    end
+
+    U --- UC01
+    U --- UC03
+    U --- UC04
+    U --- UC05
+    U --- UC06
+    U --- UC07
+    U --- UC09
+    U --- UC11
+    U --- UC12
+    M --- UC01
+    M --- UC02
+    M --- UC10
+    M --- UC11
+    M --- UC13
+    M --- UC14
+    SA --- UC01
+    SA --- UC16
+    SA --- UC17
+    L --- UC01
+    L --- UC14
+
+    UC04 -.->|include| UC03
+    UC09 -.->|include| UC15
+    UC08 -.->|extend| UC13
+    UC10 -.->|extend| UC13
