@@ -1,6 +1,8 @@
 # 智慧自习室预约与管理系统
 
-《软件工程》课程项目仓库。系统面向高校自习室，提供座位查询、预约、签到签退、违约与申诉、黑名单、投诉评价、数据分析和规则参数配置。
+《软件工程》课程项目。系统面向高校自习室，提供座位查询、预约与修改、签到签退、违约与申诉、黑名单、投诉评价、数据分析、通知与规则参数配置。
+
+**最终版：v1.0　端口：5012　AC：70 / 70　测试：128 passed**
 
 ## 小组
 
@@ -11,68 +13,74 @@
 | 周俊楠 | 交叉审查人 |
 | 杨子涵 | 业务确认人 |
 
-## 当前状态
-
-- 当前候选版本：v0.11（最终版 v1.0 定版中）
-- 需求基线：SRS V1.7（AC 70/70）
-- 测试：128 passed（pytest）
-- 技术栈：Python 3.13 + Flask 3 + SQLite + Jinja2
-
 ## 快速启动
 
 ```powershell
 cd src
 python -m pip install -r requirements.txt
-python app.py
+python -m pytest -q      # 128 passed
+python app.py            # http://127.0.0.1:5012
 ```
-
-默认端口以 `src/config.py` 为准；当前开发版本为 5011。
 
 ## 测试账号
 
-| 角色 | 账号 | 密码 |
-|---|---|---|
-| 学生 | 246003384 | student123 |
-| 自习室管理员 | 900000001 | admin123 |
-| 系统管理员 | 900000002 | sysadmin123 |
-| 后勤部门 | 900000003 | logistics123 |
+| 角色 | 账号 | 密码 | 入口 |
+|---|---|---|---|
+| 学生 R-01 | 246003384 | student123 | `/student` |
+| 自习室管理员 R-02 | 900000001 | admin123 | `/admin` |
+| 系统管理员 R-03 | 900000002 | sysadmin123 | `/sysadmin` |
+| 后勤 R-04 | 900000003 | logistics123 | `/analytics` |
+
+## 文档索引
+
+| 文档 | 路径 |
+|---|---|
+| 当前需求 SRS V1.7 | `docs/requirements/SRS-V1.7.md` / `.docx` / `.pdf` |
+| 历史需求 SRS V1.0—V1.6 | `docs/requirements/history/` |
+| 材料 A 需求分析质量验证报告 | `docs/reports/材料A-需求分析质量验证报告.md` / `.docx` / `.pdf` |
+| 材料 B AI 智能体使用验证报告 | `docs/reports/材料B-AI智能体使用验证报告.md` / `.docx` / `.pdf` |
+| 历史材料说明 | `docs/reports/历史材料说明.md` |
+| 架构讨论稿 | `docs/architecture/软件架构设计方案_讨论稿.md` |
+| 架构基线版 | `docs/architecture/软件架构设计方案_基线版.md` |
+| 架构确认与决策记录 | `docs/architecture/架构确认与决策记录.md` |
+| 基线索引 | `docs/architecture/基线索引.md` |
+| Q/ADR 回填表 | `docs/architecture/Q与ADR决策回填表.md`、`Q与ADR决策回填表_已填版.md` |
+| 接口与关键设计 | `docs/design/接口与关键设计说明书.md`、`docs/design/api.md` |
+| 分阶段计划 | `docs/plans/分阶段实现与测试计划.md` |
+| AC 映射 | `docs/plans/AC-mapping.md` |
+| 任务卡 | `docs/tasks/任务卡.md` |
+| 验证证据 | `docs/evidence/`（含 `stage-acceptance-S11.md`、`ADR-06-and-Q24-verification.md`） |
+| 版本历史 | `docs/evidence/version-history.md` |
+| 启动/环境/问题指南 | `docs/guides/` |
+| 附件总清单 | `assets/attachments/00-附件清单.md` / `.docx` / `.pdf` |
 
 ## 目录结构
 
 ```text
 .
-├─ AGENTS.md                 AI 与本项目协作规则
+├─ AGENTS.md                 AI 与项目协作规则
 ├─ README.md                 本文件
 ├─ docs/
-│  ├─ requirements/          需求规格说明书（SRS V1.7）
-│  ├─ reports/               材料 A / 材料 B（需求阶段历史报告）
-│  ├─ architecture/          架构讨论稿、基线版、决策记录、基线索引
-│  ├─ design/                接口与关键设计说明书
-│  ├─ plans/                 分阶段实现与测试计划
+│  ├─ requirements/          SRS V1.7 与历史版本
+│  ├─ reports/               材料 A/B（历史记录）
+│  ├─ architecture/          架构、决策、基线索引
+│  ├─ design/                接口与关键设计
+│  ├─ plans/                 阶段计划与 AC 映射
 │  ├─ tasks/                 任务卡
-│  └─ evidence/              测试、验收、确认与验证证据
-├─ src/                      系统源码（Flask 应用）
-├─ tests/                    自动化测试
+│  ├─ evidence/              测试、验收与验证证据
+│  ├─ guides/                启动、环境、问题指南
+│  └─ ai-usage-log.md        AI 使用记录
+├─ src/                      v1.0 最终版源码（Flask + SQLite）
+├─ tests/                    128 条 pytest
+├─ scripts/                  图渲染、文档转换与自检脚本
 └─ assets/
-   ├─ figures/               图模型源文件与导出版
-   ├─ prototype/             交互原型与截图
-   └─ attachments/           课程提交附件
+   ├─ figures/               13 组 39 个图文件
+   ├─ prototype/             原型与 29 张走查截图
+   └─ attachments/           28 个附件文件
 ```
-
-## 文档索引
-
-| 文档 | 位置 |
-|---|---|
-| 需求规格说明书 | `docs/requirements/` |
-| 材料 A / 材料 B | `docs/reports/` |
-| 架构设计 | `docs/architecture/` |
-| 接口与关键设计 | `docs/design/` |
-| 阶段计划与测试 | `docs/plans/` |
-| 任务卡 | `docs/tasks/` |
-| 验证证据 | `docs/evidence/` |
 
 ## 说明
 
-- 材料 A/B 是 2026-10-29 需求阶段的历史记录，引用 SRS V1.3 与 68 条 AC；当前需求与系统以 SRS V1.7 和 `src/` 为准。
-- 系统不接入真实 SSO，未做压力测试与恢复演练（助教已确认演示口径）。
-- 不提交数据库文件、缓存、密钥和课程资料原件。
+- 材料 A/B 是 2026-10-29 需求阶段的历史记录，引用 SRS V1.3 与 68 条 AC；当前需求为 SRS V1.7、70 条 AC，未改写历史材料正文。
+- 系统使用模拟 SSO，不接入真实统一身份认证；未做压测与恢复演练（助教确认演示验收口径）。
+- 仓库不包含数据库文件、缓存、旧版本目录、课程资料 PDF 或旧 zip。
