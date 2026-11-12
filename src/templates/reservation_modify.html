@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}修改预约 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>修改预约（FR-04 / AC-04-07、AC-04-08）</h2>
+      <p class="note">仅「待生效」且开始前可修改，每条预约最多一次。可更换日期、时段、自习室、区域与座位；预约单号保持不变。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('reservations_page') }}">返回我的预约</a>
+  </div>
+  <p class="note">当前：<span class="mono">{{ reservation['reservation_no'] }}</span> ·
+    {{ reservation['room_name'] }} / {{ reservation['zone_name'] }} / {{ reservation['seat_code'] }} ·
+    {{ reservation['reservation_date'] }} {{ reservation['start_time'] }}—{{ reservation['end_time'] }}
+  </p>
+  <div id="modify-message"></div>
+  <div class="form-grid">
+    <label>日期<input id="m-date" type="date" value="{{ reservation['reservation_date'] }}"></label>
+    <label>开始<input id="m-from" type="time" value="{{ reservation['start_time'] }}"></label>
+    <label>结束<input id="m-to" type="time" value="{{ reservation['end_time'] }}"></label>
+    <label>自习室<select id="m-room"></select></label>
+    <label>区域<select id="m-zone"></select></label>
+    <label>座位<select id="m-seat"></select></label>
+    <button class="act full" id="btn-modify" type="button">提交修改</button>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var rooms = {{ rooms | tojson }};
+  var zones = {{ zones | tojson }};
+  var seats = {{ seats | tojson }};
+  var current = {
+    room_id: {{ reservation['room_id'] }},
+    zone_id: {{ reservation['zone_id'] }},
+    seat_id: {{ reservation['seat_id'] }}
+  };
+  function el(id) { return document.getElementById(id); }
+  function msg(kind, text) {
+    el("modify-message").innerHTML = '<div class="msg ' + kind + '">' +
+      String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  function fillRooms() {
+    el("m-room").innerHTML = rooms.map(function (r) {
+      return '<option value="' + r.id + '">' + r.code + ' · ' + r.name + '</option>';
+    }).join("");
+  }
+  function fillZones() {
+    var roomId = Number(el("m-room").value);
+    var list = zones.filter(function (z) { return Number(z.room_id) === roomId; });
+    el("m-zone").innerHTML = list.map(function (z) {
+      return '<option value="' + z.id + '">' + z.name + '</option>';
+    }).join("");
+    fillSeats();
+  }
+  function fillSeats() {
+    var zoneId = Number(el("m-zone").value);
+    var list = seats.filter(function (s) {
+      return Number(s.zone_id) === zoneId && Number(s.is_bookable) === 1 && s.status !== "停用";
+    });
+    el("m-seat").innerHTML = list.map(function (s) {
+      return '<option value="' + s.id + '">' + s.code + ' · ' + s.seat_type + ' · ' + s.status + '</option>';
+    }).join("");
+  }
+  fillRooms();
+  el("m-room").value = String(current.room_id);
+  fillZones();
+  el("m-zone").value = String(current.zone_id);
+  fillSeats();
+  el("m-seat").value = String(current.seat_id);
+  el("m-room").addEventListener("change", fillZones);
+  el("m-zone").addEventListener("change", fillSeats);
+  el("btn-modify").addEventListener("click", function () {
+    var button = this;
+    var body = {
+      date: el("m-date").value,
+      from: el("m-from").value,
+      to: el("m-to").value,
+      room_id: el("m-room").value,
+      zone_id: el("m-zone").value,
+      seat_id: el("m-seat").value
+    };
+    if (!body.date || !body.from || !body.to || !body.seat_id) {
+      msg("bad", "日期、时段与座位必填。"); return;
+    }
+    button.disabled = true;
+    fetch("/api/reservations/{{ reservation['id'] }}", {
+      method: "PUT",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (result) {
+        button.disabled = false;
+        if (!result.ok) { msg("bad", "修改失败：" + result.data.error.message); return; }
+        msg("ok", "修改成功，预约单号保持不变。");
+        window.setTimeout(function () { window.location.href = "/reservations"; }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        msg("bad", "请求失败，请重试。");
+      });
+  });
+})();
+</script>
+{% endblock %}

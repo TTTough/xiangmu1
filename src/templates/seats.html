@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}查询与预约 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>查询空闲座位（UC-03 / FR-06 / AC-06-01）</h2>
+  <div class="filter-grid">
+    <label>楼栋<input id="f-building" placeholder="如：图书馆"></label>
+    <label>自习室
+      <select id="f-room">
+        <option value="">全部</option>
+        {% for room in rooms %}
+        <option value="{{ room['id'] }}">{{ room['name'] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>区域
+      <select id="f-zone">
+        <option value="">全部</option>
+        {% for zone in zones %}
+        <option value="{{ zone['id'] }}">{{ zone['room_name'] }} · {{ zone['name'] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>日期<input id="f-date" type="date" value="{{ default_date }}"></label>
+    <label>开始<input id="f-start" type="time" value="09:00"></label>
+    <label>结束<input id="f-end" type="time" value="11:00"></label>
+    <label>座位类型
+      <select id="f-type">
+        <option value="">全部</option>
+        <option>普通</option>
+        <option>带电源</option>
+        <option>靠窗</option>
+        <option>隔断</option>
+      </select>
+    </label>
+    <label class="checkline"><input id="f-only" type="checkbox"> 只显示该时段可约</label>
+    <button class="act" id="btn-query" type="button">查询座位</button>
+  </div>
+  <div class="legend">
+    <span><i class="free"></i>空闲</span>
+    <span><i class="reserved"></i>已预约</span>
+    <span><i class="occupied"></i>使用中</span>
+    <span><i class="disabled"></i>停用</span>
+    <span class="note">使用者姓名不在本 Sprint 的查询结果中展示</span>
+  </div>
+  <div id="query-message" class="msg info">正在加载座位数据……</div>
+  <div id="seat-grid" class="seatgrid"></div>
+</section>
+
+{% if can_book %}
+<section class="panel" id="reserve-panel" hidden>
+  <h2>提交预约（UC-04 / FR-03）</h2>
+  <div id="selected-summary" class="selected-summary"></div>
+  <div class="row">
+    <button class="act" id="btn-reserve" type="button">确认预约所选座位</button>
+    <span class="note">提交时服务端重新校验黑名单、有效预约上限、时长、开放时间、提前天数与时段冲突。</span>
+  </div>
+  <div id="reserve-message"></div>
+</section>
+{% else %}
+<section class="panel">
+  <h2>座位查询说明</h2>
+  <p class="note">管理员本 Sprint 仅提供只读查询；实时座位管理与手动违约登记在后续 Sprint 开放。</p>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var canBook = {{ 'true' if can_book else 'false' }};
+  var selected = null;
+  var lastSeats = [];
+
+  function el(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function queryParams() {
+    var params = new URLSearchParams();
+    var mapping = [
+      ["building", "f-building"], ["room_id", "f-room"], ["zone_id", "f-zone"],
+      ["date", "f-date"], ["start", "f-start"], ["end", "f-end"],
+      ["seat_type", "f-type"]
+    ];
+    mapping.forEach(function (pair) {
+      var value = el(pair[1]).value.trim();
+      if (value) { params.set(pair[0], value); }
+    });
+    if (el("f-only").checked) { params.set("only_available", "1"); }
+    return params;
+  }
+  function show(target, kind, text) {
+    target.innerHTML = '<div class="msg ' + kind + '">' + esc(text) + '</div>';
+  }
+  function seatClass(status) {
+    return {"空闲": "free", "已预约": "reserved", "使用中": "occupied", "停用": "disabled"}[status] || "";
+  }
+  function renderSeats(data) {
+    lastSeats = data.seats;
+    var grid = el("seat-grid");
+    grid.innerHTML = "";
+    if (!data.seats.length) {
+      grid.innerHTML = '<p class="empty">没有符合筛选条件的座位。</p>';
+      el("reserve-panel") && (el("reserve-panel").hidden = true);
+      return;
+    }
+    data.seats.forEach(function (seat) {
+      var card = document.createElement("button");
+      card.type = "button";
+      card.className = "seat " + seatClass(seat.current_status) + (selected && selected.id === seat.id ? " sel" : "");
+      var slotText = "";
+      if (seat.available_for_slot === true) { slotText = '<div class="slot ok">该时段可约</div>'; }
+      if (seat.available_for_slot === false) { slotText = '<div class="slot bad">该时段不可约</div>'; }
+      var slots = seat.available_slots.length
+        ? seat.available_slots.map(function (s) { return s.start + "—" + s.end; }).join("，")
+        : "无可预约空档";
+      card.innerHTML =
+        '<div class="seat-head"><span class="no">' + esc(seat.code) + '</span><span class="st">' + esc(seat.current_status) + '</span></div>' +
+        '<div class="seat-meta">' + esc(seat.zone.name) + ' · ' + esc(seat.seat_type) + '</div>' +
+        slotText +
+        '<div class="slots">空档：' + esc(slots) + '</div>';
+      card.addEventListener("click", function () {
+        selected = seat;
+        renderSeats({seats: lastSeats});
+        if (canBook) { renderSelected(); }
+      });
+      grid.appendChild(card);
+    });
+    if (selected) {
+      var fresh = data.seats.filter(function (s) { return s.id === selected.id; })[0];
+      selected = fresh || null;
+    }
+    if (canBook) { renderSelected(); }
+  }
+  function renderSelected() {
+    var panel = el("reserve-panel");
+    if (!panel) { return; }
+    if (!selected) { panel.hidden = true; return; }
+    panel.hidden = false;
+    var slots = selected.available_slots.length
+      ? selected.available_slots.map(function (s) { return s.start + "—" + s.end; }).join("，")
+      : "无";
+    el("selected-summary").innerHTML =
+      '<p><strong>已选座位：' + esc(selected.code) + '</strong> · ' + esc(selected.room.name) +
+      ' · ' + esc(selected.zone.name) + ' · ' + esc(selected.seat_type) + '</p>' +
+      '<p>日期：<span class="mono">' + esc(el("f-date").value) + '</span>；时段：<span class="mono">' +
+      esc(el("f-start").value) + "—" + esc(el("f-end").value) + '</span>；当日空档：' + esc(slots) + '</p>';
+    var button = el("btn-reserve");
+    button.disabled = selected.available_for_slot === false || selected.current_status === "停用";
+  }
+  function loadSeats() {
+    show(el("query-message"), "info", "正在查询……");
+    fetch("/api/seats?" + queryParams().toString(), {headers: {"Accept": "application/json"}})
+      .then(function (response) { return response.json().then(function (body) { return {ok: response.ok, body: body}; }); })
+      .then(function (result) {
+        if (!result.ok) {
+          show(el("query-message"), "bad", result.body.error.message || "查询失败");
+          return;
+        }
+        el("query-message").innerHTML = "共 " + result.body.count + " 个座位；current_status 为当前展示状态，空档按所选日期计算。";
+        selected = null;
+        renderSeats(result.body);
+      })
+      .catch(function () { show(el("query-message"), "bad", "查询请求失败，请重试"); });
+  }
+  function reserve() {
+    if (!selected) { return; }
+    var button = el("btn-reserve");
+    button.disabled = true;
+    fetch("/api/reservations", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify({
+        seat_id: selected.id,
+        reservation_date: el("f-date").value,
+        start_time: el("f-start").value,
+        end_time: el("f-end").value
+      })
+    }).then(function (response) {
+      return response.json().then(function (body) { return {ok: response.ok, body: body}; });
+    }).then(function (result) {
+      button.disabled = false;
+      if (!result.ok) {
+        show(el("reserve-message"), "bad", "预约被拒绝：" + result.body.error.message);
+        return;
+      }
+      var r = result.body.reservation;
+      show(el("reserve-message"), "ok",
+        "预约成功：" + r.reservation_no + "，座位 " + r.seat_code + "，状态「" + r.status +
+        "」；已发送预约成功通知。");
+      loadSeats();
+    }).catch(function () {
+      button.disabled = false;
+      show(el("reserve-message"), "bad", "预约请求失败，请检查网络后重试");
+    });
+  }
+  el("btn-query").addEventListener("click", loadSeats);
+  if (el("btn-reserve")) { el("btn-reserve").addEventListener("click", reserve); }
+  ["f-date", "f-start", "f-end"].forEach(function (id) {
+    el(id).addEventListener("change", function () { selected = null; loadSeats(); });
+  });
+  loadSeats();
+})();
+</script>
+{% endblock %}

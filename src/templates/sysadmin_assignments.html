@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}授权维护 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>管理员授权维护（BR-21 / V1.6）</h2>
+      <p class="note">系统管理员可授予或撤销“管理员—自习室”授权；授权变更即时影响资源、投诉、实时座位与历史接口的可见范围。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('sysadmin_home') }}">返回工作台</a>
+  </div>
+  <div id="assignment-message"></div>
+  <div class="form-grid">
+    <label>管理员
+      <select id="a-admin">
+        {% for admin in admins %}<option value="{{ admin['student_no'] }}">{{ admin['name'] }}（{{ admin['student_no'] }}）</option>{% endfor %}
+      </select>
+    </label>
+    <label>自习室
+      <select id="a-room">
+        {% for room in rooms %}<option value="{{ room['id'] }}">{{ room['code'] }} · {{ room['name'] }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="act" id="btn-grant" type="button">授予授权</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>现有授权</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>管理员</th><th>自习室</th><th>授予时间</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for a in assignments %}
+      <tr>
+        <td>{{ a.admin_name }}<br><span class="mono note">{{ a.admin_student_no }}</span></td>
+        <td>{{ a.room_name }}<br><span class="mono note">{{ a.room_code }}</span></td>
+        <td class="mono">{{ a.created_at }}</td>
+        <td><button class="act danger btn-revoke" type="button"
+                    data-admin="{{ a.admin_student_no }}" data-room="{{ a.room_id }}">撤销</button></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="note">暂无授权记录</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function msg(kind, text) {
+    el("assignment-message").innerHTML = '<div class="msg ' + kind + '">' +
+      String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  function post(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); });
+  }
+  el("btn-grant").addEventListener("click", function () {
+    var button = this;
+    button.disabled = true;
+    post("/api/system/admin-room-assignments", {
+      admin_student_no: el("a-admin").value,
+      room_id: el("a-room").value
+    }).then(function (result) {
+      button.disabled = false;
+      if (!result.ok) { msg("bad", "授予失败：" + result.data.error.message); return; }
+      msg("ok", "已授予：" + result.data.assignment.admin_student_no + " → " + result.data.assignment.room_code);
+      window.setTimeout(function () { window.location.reload(); }, 800);
+    }).catch(function () { button.disabled = false; msg("bad", "请求失败，请重试。"); });
+  });
+  document.querySelectorAll(".btn-revoke").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!window.confirm("确认撤销该管理员的自习室授权？")) { return; }
+      button.disabled = true;
+      post("/api/system/admin-room-assignments/revoke", {
+        admin_student_no: button.dataset.admin,
+        room_id: button.dataset.room
+      }).then(function (result) {
+        if (!result.ok) { button.disabled = false; msg("bad", "撤销失败：" + result.data.error.message); return; }
+        msg("ok", "授权已撤销。");
+        window.setTimeout(function () { window.location.reload(); }, 800);
+      }).catch(function () { button.disabled = false; msg("bad", "请求失败，请重试。"); });
+    });
+  });
+})();
+</script>
+{% endblock %}

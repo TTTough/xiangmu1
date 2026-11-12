@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}参数配置 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>规则参数配置（FR-13 / AC-13-01—04）</h2>
+      <p class="note">参数保存后即时生效；输入必须落在声明范围内。每次变更记录操作人、时间与前后取值并写入审计日志。历史业务记录不因参数变更而回溯修改。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('sysadmin_audit_page') }}">查看审计日志</a>
+  </div>
+  <div id="param-message"></div>
+</section>
+
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>编号 / 参数</th><th>当前值</th><th>默认值</th><th>取值范围</th><th>来源 / 状态</th><th>生效点</th><th>修改</th></tr></thead>
+      <tbody>
+      {% for p in params %}
+      <tr data-key="{{ p.param_key }}">
+        <td><strong>{{ p.param_no }}</strong> {{ p.name }}<br><span class="mono note">{{ p.param_key }}</span></td>
+        <td><span class="mono"><strong>{{ p.value }}</strong> {{ p.unit or '' }}</span></td>
+        <td><span class="mono">{{ p.default_value }}</span></td>
+        <td><span class="mono">{{ p.range_text or '—' }}</span></td>
+        <td><span class="note">{{ p.source_nature }}<br>{{ p.confirmation_status }}</span></td>
+        <td><span class="note"><strong>{{ p.effect_status }}</strong>{% if p.effect_status == '已接入' %}<br>{{ p.effect_point }}{% endif %}</span></td>
+        <td>
+          <div class="param-edit">
+            <input class="param-value" value="{{ p.value }}" inputmode="decimal">
+            <button class="act ghost btn-save-param" type="button">保存</button>
+          </div>
+          <span class="note">最近变更：{{ p.updated_at or '—' }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:12px">注：附录 A 未统一给出数值范围，本版范围为可校验的实现默认区间（见 docs/open-questions.md OQ-33）。「未接入」参数不影响当前业务判定；AC-13-01 的即时生效只对「已接入」参数宣称（Q-32）。</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function msg(kind, text) {
+    document.getElementById("param-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.querySelectorAll(".btn-save-param").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var row = button.closest("tr");
+      var key = row.dataset.key;
+      var value = row.querySelector(".param-value").value.trim();
+      if (!value) { msg("bad", "参数值不能为空。"); return; }
+      button.disabled = true;
+      fetch("/api/system/rule-params/" + encodeURIComponent(key), {
+        method: "PUT",
+        headers: {"Content-Type": "application/json", "Accept": "application/json"},
+        body: JSON.stringify({value: value})
+      }).then(function (response) {
+        return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+      }).then(function (result) {
+        button.disabled = false;
+        if (!result.ok) { msg("bad", "保存失败：" + result.data.error.message); return; }
+        var p = result.data.param;
+        msg("ok", p.param_no + " " + p.name + " 已保存：" + p.before + " → " + p.after +
+          "（范围 " + p.min_value + "—" + p.max_value + "）。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        msg("bad", "参数保存请求失败，请重试。");
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

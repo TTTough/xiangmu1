@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}签到与签退 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>签到 / 签退（FR-04）</h2>
+      <p class="note">服务端当前时间：<span class="mono">{{ now_text }}</span>。签到窗口由 P-05/P-06 参数计算；窗口外或座位号不一致时拒绝且状态保持。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('reservations_page') }}">查看全部预约</a>
+  </div>
+  <div id="usage-message"></div>
+  {% if items %}
+  <div class="item-list">
+    {% for item in items %}
+    <article class="work-item" data-reservation="{{ item.id }}">
+      <h3>{{ item.room_name }} · 座位 <span class="mono">{{ item.seat_code }}</span>
+        <span class="pill {{ 's1' if item.status == '待签到' else 's2' }}">{{ item.status }}</span>
+      </h3>
+      <div class="work-meta">
+        <span>预约单：<span class="mono">{{ item.reservation_no }}</span></span>
+        <span>日期：<span class="mono">{{ item.reservation_date }}</span></span>
+        <span>时段：<span class="mono">{{ item.start_time }}—{{ item.end_time }}</span></span>
+        <span>签到窗口：<span class="mono">{{ item.window_start }}—{{ item.window_end }}</span></span>
+        {% if item.checkin_at %}<span>签到时间：<span class="mono">{{ item.checkin_at }}</span>（{{ item.checkin_method }}）</span>{% endif %}
+      </div>
+      {% if item.status == '待签到' %}
+      <div class="work-actions">
+        <label>签到方式
+          <select class="ci-method">
+            <option value="二维码">二维码</option>
+            <option value="座位编号" {% if not item.checkin_enabled %}selected{% endif %}>座位编号</option>
+          </select>
+        </label>
+        <label>座位号
+          <input class="ci-code" value="{{ item.seat_code }}" size="8">
+        </label>
+        <button class="act btn-checkin" type="button" data-id="{{ item.id }}" {% if not item.checkin_enabled %}disabled{% endif %}>确认签到</button>
+        {% if not item.checkin_enabled %}<span class="note">当前不在签到窗口内，按钮已禁用；服务端仍会再次校验。</span>{% endif %}
+      </div>
+      {% elif item.status == '使用中' %}
+      <div class="work-actions">
+        <button class="act ok btn-checkout" type="button" data-id="{{ item.id }}">签退并释放座位</button>
+        <span class="note">签退后预约单变为「已完成」，实际使用时长会被记录。</span>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">当前没有待签到或使用中的预约。请先在“查询与预约”中完成预约；预约进入签到窗口后会自动转为「待签到」。</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function show(kind, text) {
+    document.getElementById("usage-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  function post(action, id, body) {
+    return fetch("/api/reservations/" + id + "/" + action, {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: body ? JSON.stringify(body) : "{}"
+    }).then(function (response) {
+      return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+    });
+  }
+  document.querySelectorAll(".btn-checkin").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var card = button.closest(".work-item");
+      var body = {
+        seat_code: card.querySelector(".ci-code").value.trim(),
+        method: card.querySelector(".ci-method").value
+      };
+      button.disabled = true;
+      post("checkin", button.dataset.id, body).then(function (result) {
+        if (!result.ok) {
+          button.disabled = false;
+          show("bad", "签到被拒绝：" + result.data.error.message);
+          return;
+        }
+        var c = result.data.checkin;
+        show("ok", "签到成功：预约单 " + c.reservation_no + " 已变为「使用中」，座位「" +
+          c.seat_code + "」同步变为「使用中」；签到方式：" + c.method + "。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        show("bad", "签到请求失败，请重试。");
+      });
+    });
+  });
+  document.querySelectorAll(".btn-checkout").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!window.confirm("确认签退并释放座位？")) { return; }
+      button.disabled = true;
+      post("checkout", button.dataset.id).then(function (result) {
+        if (!result.ok) {
+          button.disabled = false;
+          show("bad", "签退被拒绝：" + result.data.error.message);
+          return;
+        }
+        var c = result.data.checkout;
+        show("ok", "签退成功：预约单 " + c.reservation_no + " 已变为「已完成」，座位已释放；实际使用 " +
+          c.actual_minutes + " 分钟。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        show("bad", "签退请求失败，请重试。");
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

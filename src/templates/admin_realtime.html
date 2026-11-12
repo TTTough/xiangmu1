@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}实时座位 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>实时座位视图（FR-07 / AC-07-01）</h2>
+      <p class="note">按区域展示座位矩阵，颜色区分空闲/已预约/使用中/停用；当前使用者姓名与学号脱敏显示。{% if current_user['role'] == 'admin' %}仅显示本人被授权的自习室。{% else %}系统管理员可查看全部自习室。{% endif %}</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_resources_page') }}">资源维护 →</a>
+  </div>
+  <div class="realtime-toolbar">
+    <label>自习室
+      <select id="realtime-room">
+        {% for room in rooms %}
+        <option value="{{ room.id }}" {% if room.id == selected_room_id %}selected{% endif %}>{{ room.name }} · {{ room.building }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="act ghost" id="btn-refresh" type="button">刷新</button>
+    <span class="note" id="refresh-time"></span>
+  </div>
+  <div class="legend">
+    <span><i class="free"></i>空闲</span><span><i class="reserved"></i>已预约</span>
+    <span><i class="occupied"></i>使用中</span><span><i class="disabled"></i>停用</span>
+  </div>
+  <div id="realtime-message"></div>
+  <div id="realtime-grid"></div>
+</section>
+
+<section class="panel" id="realtime-action" hidden>
+  <h2>座位处置</h2>
+  <div id="realtime-summary"></div>
+  {% if current_user['role'] == 'admin' %}
+  <div class="form-grid" style="margin-top:10px">
+    <label class="full">处置原因（V3 登记/提前释放必填）<input id="rt-reason" placeholder="填写现场事实与原因"></label>
+    <label>被登记学生学号（无有效预约时必填）<input id="rt-student-no" placeholder="如 246003385"></label>
+    <label>操作提示<span class="note">V3 登记会生成生效中违约并释放座位；提前释放会给学生发送通知。</span></label>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="act danger" id="btn-v3" type="button">V3 手动违约登记</button>
+    <button class="act ghost" id="btn-release" type="button">提前释放当前预约</button>
+    <a class="buttonlike ghost" id="history-link" href="#">查看座位历史</a>
+  </div>
+  {% else %}
+  <p class="note">系统管理员可查看实时座位与座位历史；V3 手动违约与提前释放按权限矩阵第 18、29 行禁止。</p>
+  <div class="row" style="margin-top:10px">
+    <a class="buttonlike ghost" id="history-link" href="#">查看座位历史</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var selected = null;
+  var canEnforce = {{ "true" if current_user["role"] == "admin" else "false" }};
+  function el(id) { return document.getElementById(id); }
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function msg(kind, text) {
+    el("realtime-message").innerHTML = '<div class="msg ' + kind + '">' + esc(text) + '</div>';
+  }
+  function statusClass(status) {
+    return {"空闲":"free", "已预约":"reserved", "使用中":"occupied", "停用":"disabled"}[status] || "";
+  }
+  function render(data) {
+    el("refresh-time").textContent = "数据时间：" + data.refreshed_at;
+    var html = "";
+    data.zones.forEach(function (zone) {
+      html += '<section class="realtime-zone"><h3>' + esc(zone.name) +
+        ' <span class="pill s2">' + esc(zone.zone_type) + "</span></h3><div class='realtime-grid'>";
+      zone.seats.forEach(function (seat) {
+        var occ = seat.current_occupant
+          ? '<div class="rocc">使用者：' + esc(seat.current_occupant.name_masked) + "</div>"
+          : "";
+        var slot = seat.reservation
+          ? '<div class="rslot">预约：' + esc(seat.reservation.start_time) + "—" + esc(seat.reservation.end_time) +
+            " · " + esc(seat.reservation.status) + "</div>"
+          : '<div class="rslot">当前无有效预约</div>';
+        html += '<button type="button" class="realtime-seat ' + statusClass(seat.status) +
+          '" data-seat=\'' + esc(JSON.stringify(seat)) + "'>" +
+          '<span class="rcode">' + esc(seat.code) + '</span><span class="rstatus">' + esc(seat.status) + "</span>" +
+          occ + slot + "</button>";
+      });
+      html += "</div></section>";
+    });
+    el("realtime-grid").innerHTML = html;
+    document.querySelectorAll(".realtime-seat").forEach(function (node) {
+      node.addEventListener("click", function () {
+        document.querySelectorAll(".realtime-seat").forEach(function (item) { item.classList.remove("sel"); });
+        node.classList.add("sel");
+        selected = JSON.parse(node.dataset.seat);
+        showAction();
+      });
+    });
+  }
+  function showAction() {
+    if (!selected) { el("realtime-action").hidden = true; return; }
+    el("realtime-action").hidden = false;
+    var res = selected.reservation;
+    el("realtime-summary").innerHTML =
+      "<p><strong>" + esc(selected.code) + "</strong> · " + esc(selected.seat_type) +
+      " · 当前状态 <span class='pill s4'>" + esc(selected.status) + "</span></p>" +
+      (res ? "<p>有效预约：<span class='mono'>" + esc(res.reservation_no) + "</span>，" +
+        esc(res.date) + " " + esc(res.start_time) + "—" + esc(res.end_time) +
+        "，状态 " + esc(res.status) + "，使用者 " + esc(res.name_masked) + "</p>"
+        : "<p class='note'>当前没有有效预约。" + (canEnforce ? "若现场被未预约者占用，登记 V3 时请填写学生学号。" : "") + "</p>");
+    var releaseButton = el("btn-release");
+    if (releaseButton) { releaseButton.disabled = !res; }
+    var studentInput = el("rt-student-no");
+    if (studentInput) { studentInput.value = ""; }
+    el("history-link").href = "/admin/seats/" + selected.id + "/history";
+  }
+  function load() {
+    var roomId = el("realtime-room").value;
+    msg("info", "正在加载实时座位……");
+    fetch("/api/admin/realtime?room_id=" + encodeURIComponent(roomId), {
+      headers: {"Accept": "application/json"}
+    }).then(function (response) {
+      return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+    }).then(function (result) {
+      if (!result.ok) { msg("bad", result.data.error.message); return; }
+      el("realtime-message").innerHTML = "";
+      selected = null;
+      el("realtime-action").hidden = true;
+      render(result.data);
+    }).catch(function () { msg("bad", "实时数据加载失败，请刷新重试。"); });
+  }
+  function post(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+    });
+  }
+  el("btn-refresh").addEventListener("click", load);
+  el("realtime-room").addEventListener("change", load);
+  var btnV3 = el("btn-v3");
+  if (btnV3) btnV3.addEventListener("click", function () {
+    if (!selected) { msg("bad", "请先选择座位。"); return; }
+    var body = {reason: el("rt-reason").value.trim()};
+    if (el("rt-student-no").value.trim()) { body.student_no = el("rt-student-no").value.trim(); }
+    post("/api/admin/seats/" + selected.id + "/manual-violation", body).then(function (r) {
+      if (!r.ok) { msg("bad", "V3 登记失败：" + r.data.error.message); return; }
+      var v = r.data.violation;
+      msg("ok", "V3 登记成功：" + v.violation_no + "；座位 " + v.seat_code + " 状态 " + v.seat_status +
+        "；该学生有效违约次数 " + v.effective_violation_count + "。");
+      load();
+    });
+  });
+  var btnRelease = el("btn-release");
+  if (btnRelease) btnRelease.addEventListener("click", function () {
+    if (!selected || !selected.reservation) { return; }
+    var reason = el("rt-reason").value.trim();
+    post("/api/admin/reservations/" + selected.reservation.reservation_id + "/release", {reason: reason})
+      .then(function (r) {
+        if (!r.ok) { msg("bad", "提前释放失败：" + r.data.error.message); return; }
+        msg("ok", "预约 " + r.data.reservation.reservation_no + " 已取消并释放座位，学生已收到通知。");
+        load();
+      });
+  });
+  load();
+})();
+</script>
+{% endblock %}

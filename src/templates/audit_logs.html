@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}审计日志 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>审计日志（FR-14 / AC-14-01—04）</h2>
+      <p class="note">日志只可查询、不可修改或删除；每条记录展示操作人、角色、操作类型、目标、变更前后取值、结果与时间。翻页后筛选条件保持。</p>
+    </div>
+  </div>
+  <form class="records-filter" method="get" action="{{ url_for('sysadmin_audit_page') }}">
+    <label>操作人<input name="actor" value="{{ filters['actor'] or '' }}" placeholder="姓名关键字"></label>
+    <label>操作类型
+      <select name="action">
+        <option value="">全部</option>
+        {% for action in ['登录','提交预约','取消预约','签到','签退','自动违约判定','提交申诉','申诉复核','停用座位','恢复座位','手动违约登记','提前释放座位','黑名单生效','黑名单自动解除','提前解除黑名单','参数变更','新增自习室','新增区域','新增座位'] %}
+        <option value="{{ action }}" {% if filters['action'] == action %}selected{% endif %}>{{ action }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>目标对象<input name="target" value="{{ filters['target'] or '' }}" placeholder="如 A-01 / 预约单号"></label>
+    <label>开始日期<input name="date_from" type="date" value="{{ filters['date_from'] or '' }}"></label>
+    <label>结束日期<input name="date_to" type="date" value="{{ filters['date_to'] or '' }}"></label>
+    <label>每页
+      <select name="page_size">
+        {% for size in [10, 20, 50, 100] %}
+        <option value="{{ size }}" {% if filters['page_size'] == size %}selected{% endif %}>{{ size }} 条</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="act" type="submit">筛选</button>
+    <a class="buttonlike ghost" href="{{ url_for('sysadmin_audit_page') }}">清空</a>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>日志结果 <span class="note">共 {{ data.pagination.total }} 条，当前第 {{ data.pagination.page }} / {{ data.pagination.total_pages or 0 }} 页</span></h2>
+  {% if data['logs'] %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>时间</th><th>操作人 / 角色</th><th>操作类型</th><th>目标对象</th><th>变更前</th><th>变更后</th><th>结果</th></tr></thead>
+      <tbody>
+      {% for log in data['logs'] %}
+      <tr>
+        <td class="mono">{{ log.created_at }}</td>
+        <td>{{ log.actor_name }}<br><span class="note">{{ log.actor_role }}</span></td>
+        <td><span class="audit-action">{{ log.action }}</span></td>
+        <td class="audit-target">{{ log.target_type }}<br><span class="mono">{{ log.target_id }}</span></td>
+        <td class="audit-cell"><pre class="audit-json">{{ log.before_text }}</pre></td>
+        <td class="audit-cell"><pre class="audit-json">{{ log.after_text }}</pre></td>
+        <td>{{ log.result }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">没有符合筛选条件的审计日志。</p>
+  {% endif %}
+  <div class="pagination">
+    <span class="page-meta">每页 {{ data.pagination.page_size }} 条 · 第 {{ data.pagination.page }} 页</span>
+    <div class="page-links">
+      <a class="page-link {{ 'disabled' if not prev_url else '' }}" href="{{ prev_url or '#' }}">上一页</a>
+      <a class="page-link {{ 'disabled' if not next_url else '' }}" href="{{ next_url or '#' }}">下一页</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}资源维护 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>座位资源维护（FR-02 / AC-02-01—04）</h2>
+      <p class="note">仅能维护本人被授权的自习室。座位状态不能直接改写；停用/恢复走工作流并留痕，停用会自动取消未来预约且不记违约。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_realtime_page') }}">打开实时座位 →</a>
+  </div>
+  <div id="resource-message"></div>
+  <div class="resource-layout">
+    <div class="resource-column">
+      {% if resources %}
+        {% for room in resources %}
+        <article class="resource-room">
+          <h3>{{ room.name }} <span class="mono note">{{ room.code }}</span></h3>
+          <div class="room-meta">
+            <span>{{ room.building }} · {{ room.floor }}</span>
+            <span>开放 {{ room.open_from }}—{{ room.open_to }}</span>
+            <span><span class="pill {{ 's3' if room.status == '开放' else 's4' }}">{{ room.status }}</span></span>
+          </div>
+          {% if room.zones %}
+            {% for zone in room.zones %}
+            <div class="zone-block">
+              <div class="zone-title">
+                <strong>{{ zone.name }}</strong>
+                <span class="pill s2">{{ zone.zone_type }}</span>
+                <span class="mono note">{{ zone.code }}</span>
+              </div>
+              <div class="seat-chiplist">
+                {% for seat in zone.seats %}
+                <button type="button"
+                        class="seat-chip {{ {'空闲':'free','已预约':'reserved','使用中':'occupied','停用':'disabled'}.get(seat.status, '') }} seat-select"
+                        data-id="{{ seat.id }}" data-code="{{ seat.code }}" data-status="{{ seat.status }}"
+                        data-type="{{ seat.seat_type }}" data-zone="{{ zone.name }}" data-room="{{ room.name }}">
+                  <span class="code">{{ seat.code }}</span>
+                  <span class="meta">{{ seat.seat_type }} · {{ seat.status }}</span>
+                </button>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="empty">暂无区域，请先新增区域。</p>
+          {% endif %}
+        </article>
+        {% endfor %}
+      {% else %}
+        <p class="empty">当前没有被授权的自习室，请先新增自习室。</p>
+      {% endif %}
+    </div>
+
+    <div class="resource-column">
+      <section class="panel" style="margin:0">
+        <h2>新增自习室</h2>
+        <div class="form-grid" id="room-form">
+          <label>编号<input id="room-code" placeholder="R-LIB-4F"></label>
+          <label>名称<input id="room-name" placeholder="图书馆四层自习室"></label>
+          <label>楼栋<input id="room-building" placeholder="图书馆"></label>
+          <label>楼层<input id="room-floor" placeholder="4 层"></label>
+          <label>位置<input id="room-location" placeholder="东侧"></label>
+          <label>状态<select id="room-status"><option>开放</option><option>关闭</option></select></label>
+          <label>开放<input id="room-from" type="time" value="08:00"></label>
+          <label>关闭<input id="room-to" type="time" value="22:00"></label>
+          <button class="act full" id="btn-create-room" type="button">创建自习室并授权本人</button>
+        </div>
+      </section>
+
+      <section class="panel" style="margin:0">
+        <h2>新增区域</h2>
+        <div class="form-grid" id="zone-form">
+          <label class="full">自习室
+            <select id="zone-room">
+              {% for room in resources %}<option value="{{ room.id }}">{{ room.name }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>区域编号<input id="zone-code" placeholder="Z4"></label>
+          <label>区域名称<input id="zone-name" placeholder="新品区"></label>
+          <label>区域类型<input id="zone-type" placeholder="静音区 / 讨论区 / 电源区"></label>
+          <label>排序<input id="zone-sort" type="number" value="4"></label>
+          <button class="act full" id="btn-create-zone" type="button">新增区域</button>
+        </div>
+      </section>
+
+      <section class="panel" style="margin:0">
+        <h2>新增座位</h2>
+        <div class="form-grid" id="seat-form">
+          <label class="full">区域
+            <select id="seat-zone">
+              {% for room in resources %}{% for zone in room.zones %}
+              <option value="{{ zone.id }}">{{ room.name }} · {{ zone.name }}</option>
+              {% endfor %}{% endfor %}
+            </select>
+          </label>
+          <label>座位编号<input id="seat-code" placeholder="D-01"></label>
+          <label>座位类型<select id="seat-type"><option>普通</option><option>带电源</option><option>靠窗</option><option>隔断</option></select></label>
+          <label class="full">位置描述<input id="seat-position" placeholder="第 1 排靠窗"></label>
+          <button class="act full" id="btn-create-seat" type="button">新增座位</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="panel seat-action-panel" id="seat-action-panel" hidden>
+  <h2>座位处置</h2>
+  <div id="seat-action-summary"></div>
+  <div class="row" style="margin-top:10px">
+    <label>原因（停用/恢复必填）<input id="seat-reason" size="48" placeholder="填写操作原因"></label>
+    <button class="act danger" id="btn-disable-seat" type="button">停用座位</button>
+    <button class="act ok" id="btn-restore-seat" type="button">恢复座位</button>
+  </div>
+  <p class="note">停用会自动取消该座位开始时刻在未来的待生效/待签到预约，取消不记违约；每次处置均写入审计日志。</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var selectedSeat = null;
+  function el(id) { return document.getElementById(id); }
+  function msg(kind, text) {
+    el("resource-message").innerHTML = '<div class="msg ' + kind + '">' +
+      String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  function post(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+    });
+  }
+  el("btn-create-room").addEventListener("click", function () {
+    post("/api/admin/rooms", {
+      code: el("room-code").value.trim(), name: el("room-name").value.trim(),
+      building: el("room-building").value.trim(), floor: el("room-floor").value.trim(),
+      location: el("room-location").value.trim(), status: el("room-status").value,
+      open_from: el("room-from").value, open_to: el("room-to").value
+    }).then(function (r) {
+      if (!r.ok) { msg("bad", "创建失败：" + r.data.error.message); return; }
+      msg("ok", "自习室已创建并授权给当前管理员。");
+      window.setTimeout(function () { window.location.reload(); }, 700);
+    });
+  });
+  el("btn-create-zone").addEventListener("click", function () {
+    var roomId = el("zone-room").value;
+    if (!roomId) { msg("bad", "请先创建自习室。"); return; }
+    post("/api/admin/rooms/" + roomId + "/zones", {
+      code: el("zone-code").value.trim(), name: el("zone-name").value.trim(),
+      zone_type: el("zone-type").value.trim(), sort_order: Number(el("zone-sort").value || 0)
+    }).then(function (r) {
+      if (!r.ok) { msg("bad", "创建区域失败：" + r.data.error.message); return; }
+      msg("ok", "区域已创建。");
+      window.setTimeout(function () { window.location.reload(); }, 700);
+    });
+  });
+  el("btn-create-seat").addEventListener("click", function () {
+    var zoneId = el("seat-zone").value;
+    if (!zoneId) { msg("bad", "请先创建区域。"); return; }
+    post("/api/admin/zones/" + zoneId + "/seats", {
+      code: el("seat-code").value.trim(), seat_type: el("seat-type").value,
+      position: el("seat-position").value.trim()
+    }).then(function (r) {
+      if (!r.ok) { msg("bad", "创建座位失败：" + r.data.error.message); return; }
+      msg("ok", "座位已创建，初始状态为空闲。");
+      window.setTimeout(function () { window.location.reload(); }, 700);
+    });
+  });
+  document.querySelectorAll(".seat-select").forEach(function (button) {
+    button.addEventListener("click", function () {
+      document.querySelectorAll(".seat-select").forEach(function (item) { item.classList.remove("sel"); });
+      button.classList.add("sel");
+      selectedSeat = button;
+      el("seat-action-panel").hidden = false;
+      el("seat-action-summary").innerHTML =
+        "<p><strong>" + button.dataset.room + " · " + button.dataset.zone + " · " + button.dataset.code +
+        "</strong>（" + button.dataset.type + "）当前状态：<span class='pill s4'>" + button.dataset.status + "</span></p>";
+      el("btn-disable-seat").disabled = button.dataset.status === "停用";
+      el("btn-restore-seat").disabled = button.dataset.status !== "停用";
+    });
+  });
+  function seatAction(action) {
+    if (!selectedSeat) { msg("bad", "请先选择一个座位。"); return; }
+    var reason = el("seat-reason").value.trim();
+    if (!reason) { msg("bad", "停用或恢复座位必须填写原因。"); return; }
+    post("/api/admin/seats/" + selectedSeat.dataset.id + "/" + action, {reason: reason})
+      .then(function (r) {
+        if (!r.ok) { msg("bad", "操作失败：" + r.data.error.message); return; }
+        msg("ok", action === "disable"
+          ? "座位已停用；未来预约已取消并通知学生。"
+          : "座位已恢复，可重新预约。");
+        window.setTimeout(function () { window.location.reload(); }, 800);
+      });
+  }
+  el("btn-disable-seat").addEventListener("click", function () { seatAction("disable"); });
+  el("btn-restore-seat").addEventListener("click", function () { seatAction("restore"); });
+})();
+</script>
+{% endblock %}

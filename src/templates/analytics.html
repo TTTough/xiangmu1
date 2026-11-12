@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}数据分析 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>数据分析（FR-11 / AC-11-01—06）</h2>
+      <p class="note">页面每 10 秒局部刷新图表与统计数值，不整页重载；刷新时保留日期/自习室筛选、滚动位置和已展开详情。</p>
+    </div>
+    <span class="note" id="analytics-updated">尚未加载</span>
+  </div>
+  <div class="records-filter">
+    <label>开始日期<input id="f-date-from" type="date" value="{{ default_date_from }}"></label>
+    <label>结束日期<input id="f-date-to" type="date" value="{{ default_date_to }}"></label>
+    <label>自习室
+      <select id="f-room">
+        <option value="">全部授权范围</option>
+        {% for room in rooms %}<option value="{{ room['id'] }}">{{ room['name'] }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="act" id="btn-query-analytics" type="button">应用筛选</button>
+    <button class="act ghost" id="btn-export-analytics" type="button">导出 CSV</button>
+    <a class="buttonlike ghost" href="{{ url_for('analytics_page') }}">重置</a>
+  </div>
+  <div id="analytics-message"></div>
+</section>
+
+<section class="panel">
+  <div class="analytics-stats">
+    <div class="stat-card"><span>当前空闲座位</span><strong id="stat-free">—</strong></div>
+    <div class="stat-card"><span>当前使用中</span><strong id="stat-occupied">—</strong></div>
+    <div class="stat-card"><span>今日预约数</span><strong id="stat-reservations">—</strong></div>
+    <div class="stat-card"><span>今日违约数</span><strong id="stat-violations">—</strong></div>
+    <div class="stat-card"><span>待受理投诉</span><strong id="stat-complaints">—</strong></div>
+    <div class="stat-card"><span>生效中黑名单</span><strong id="stat-blacklists">—</strong></div>
+  </div>
+</section>
+
+<div class="analytics-charts">
+  <section class="panel">
+    <h2>座位使用预约量（按自习室）</h2>
+    <div id="bar-reservations" class="chart-box"></div>
+  </section>
+  <section class="panel">
+    <h2>违约次数（按自习室）</h2>
+    <div id="bar-violations" class="chart-box"></div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>预约量 / 违约量趋势（折线图）</h2>
+  <div class="chart-legend"><span class="legend-reservation">预约量</span><span class="legend-violation">违约量</span></div>
+  <div id="line-daily" class="chart-box chart-wide"></div>
+</section>
+
+<section class="panel">
+  <details id="analytics-detail">
+    <summary>展开统计明细（自动刷新不会关闭此区域）</summary>
+    <p class="note">自动刷新只更新本页图表与统计值；筛选条件、滚动位置与该详情展开状态保持不变。</p>
+    <div id="analytics-detail-body"></div>
+  </details>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var refreshMs = 10000;
+  function el(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function msg(kind, text) {
+    el("analytics-message").innerHTML = '<div class="msg ' + kind + '">' + esc(text) + '</div>';
+  }
+  function renderBars(container, labels, values, color) {
+    if (!labels.length) { container.innerHTML = '<p class="empty">当前筛选范围暂无数据。</p>'; return; }
+    var W = 760, H = 250, left = 55, bottom = 42, top = 20, gap = 18;
+    var max = Math.max.apply(null, values.concat([1]));
+    var plotW = W - left - 20, plotH = H - top - bottom;
+    var slot = plotW / labels.length;
+    var barW = Math.min(56, slot * 0.55);
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart-svg" role="img">';
+    for (var g = 0; g <= 4; g += 1) {
+      var y = top + plotH * g / 4;
+      var value = Math.round(max * (4 - g) / 4);
+      svg += '<line x1="' + left + '" y1="' + y + '" x2="' + (W - 20) + '" y2="' + y + '" stroke="#e6ebf3"/>' +
+        '<text x="8" y="' + (y + 4) + '" fill="#8a93a4" font-size="11">' + value + '</text>';
+    }
+    labels.forEach(function (label, index) {
+      var h = plotH * values[index] / max;
+      var x = left + slot * index + (slot - barW) / 2;
+      var y = top + plotH - h;
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h +
+        '" rx="4" fill="' + color + '"><title>' + esc(label) + '：' + values[index] + '</title></rect>' +
+        '<text x="' + (left + slot * index + slot / 2) + '" y="' + (H - 14) +
+        '" text-anchor="middle" fill="#6c7789" font-size="11">' + esc(label) + '</text>';
+    });
+    svg += '</svg>';
+    container.innerHTML = svg;
+  }
+  function renderLine(container, labels, reservations, violations) {
+    if (!labels.length) { container.innerHTML = '<p class="empty">当前筛选范围暂无数据。</p>'; return; }
+    var W = 980, H = 280, left = 55, bottom = 42, top = 20;
+    var max = Math.max.apply(null, reservations.concat(violations).concat([1]));
+    var plotW = W - left - 20, plotH = H - top - bottom;
+    function points(values, color) {
+      var coords = values.map(function (value, index) {
+        var x = labels.length === 1 ? left + plotW / 2 : left + plotW * index / (labels.length - 1);
+        var y = top + plotH - plotH * value / max;
+        return [x, y];
+      });
+      var poly = coords.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+      var svg = '<polyline fill="none" stroke="' + color + '" stroke-width="2.5" points="' + poly + '"/>';
+      coords.forEach(function (p, index) {
+        svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" fill="' + color + '"><title>' +
+          esc(labels[index]) + '：' + values[index] + '</title></circle>';
+      });
+      return svg;
+    }
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart-svg" role="img">';
+    for (var g = 0; g <= 4; g += 1) {
+      var y = top + plotH * g / 4;
+      svg += '<line x1="' + left + '" y1="' + y + '" x2="' + (W - 20) + '" y2="' + y + '" stroke="#e6ebf3"/>' +
+        '<text x="8" y="' + (y + 4) + '" fill="#8a93a4" font-size="11">' + Math.round(max * (4 - g) / 4) + '</text>';
+    }
+    labels.forEach(function (label, index) {
+      if (index % Math.ceil(labels.length / 10) !== 0 && index !== labels.length - 1) { return; }
+      var x = labels.length === 1 ? left + plotW / 2 : left + plotW * index / (labels.length - 1);
+      svg += '<text x="' + x + '" y="' + (H - 14) + '" text-anchor="middle" fill="#6c7789" font-size="10">' +
+        esc(label.slice(5)) + '</text>';
+    });
+    svg += points(reservations, '#2c6fd1') + points(violations, '#c25b4d') + '</svg>';
+    container.innerHTML = svg;
+  }
+  function render(data) {
+    var s = data.stats;
+    el("stat-free").textContent = s.current_free_seats;
+    el("stat-occupied").textContent = s.current_occupied_seats;
+    el("stat-reservations").textContent = s.today_reservations;
+    el("stat-violations").textContent = s.today_violations;
+    el("stat-complaints").textContent = s.pending_complaints;
+    el("stat-blacklists").textContent = s.active_blacklists;
+    renderBars(el("bar-reservations"), data.charts.bar_reservations_by_room.labels,
+      data.charts.bar_reservations_by_room.values, '#2c6fd1');
+    renderBars(el("bar-violations"), data.charts.bar_violations_by_room.labels,
+      data.charts.bar_violations_by_room.values, '#c25b4d');
+    renderLine(el("line-daily"), data.charts.line_daily.labels,
+      data.charts.line_daily.reservations, data.charts.line_daily.violations);
+    el("analytics-updated").textContent = "最近刷新：" + data.refreshed_at + " · 每 " +
+      data.charts.refresh_seconds + " 秒刷新";
+    el("analytics-detail-body").innerHTML =
+      '<p class="note">统计范围：' + esc(data.filters.date_from) + ' — ' + esc(data.filters.date_to) +
+      '；图表数据点：' + data.charts.line_daily.labels.length + ' 天。</p>';
+  }
+  function currentQuery() {
+    var params = new URLSearchParams();
+    if (el("f-date-from").value) { params.set("date_from", el("f-date-from").value); }
+    if (el("f-date-to").value) { params.set("date_to", el("f-date-to").value); }
+    if (el("f-room").value) { params.set("room_id", el("f-room").value); }
+    return params;
+  }
+  function refresh() {
+    fetch("/api/analytics?" + currentQuery().toString(), {headers: {"Accept": "application/json"}})
+      .then(function (response) {
+        return response.json().then(function (body) { return {ok: response.ok, body: body}; });
+      }).then(function (result) {
+        if (!result.ok) { msg("bad", result.body.error.message); return; }
+        el("analytics-message").innerHTML = "";
+        render(result.body);
+      }).catch(function () { msg("bad", "统计数据加载失败，请稍后重试。"); });
+  }
+  el("btn-query-analytics").addEventListener("click", refresh);
+  el("btn-export-analytics").addEventListener("click", function () {
+    window.open("/api/analytics/export?" + currentQuery().toString(), "_blank");
+  });
+  setInterval(refresh, refreshMs);
+  refresh();
+})();
+</script>
+{% endblock %}

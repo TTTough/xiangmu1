@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>智慧自习室预约与管理系统 · 交互原型 v1.0（需求验证用）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Microsoft YaHei","Segoe UI",sans-serif;background:#f4f5f7;color:#222;font-size:14px}
+header{background:#1f3864;color:#fff;padding:11px 20px;display:flex;align-items:center;gap:12px}
+header h1{font-size:15px;margin:0;font-weight:600}
+header .tag{font-size:12px;background:#3d5a94;padding:2px 9px;border-radius:10px}
+.clock{margin-left:auto;font-size:12.5px;background:#0f2447;padding:5px 11px;border-radius:4px}
+nav{display:flex;gap:8px;padding:12px 20px 0}
+nav button{padding:8px 18px;border:1px solid #c9ccd4;background:#fff;border-radius:6px 6px 0 0;cursor:pointer;font-size:14px;font-family:inherit}
+nav button.on{background:#1f3864;color:#fff;border-color:#1f3864}
+main{padding:14px 20px 40px}
+.panel{background:#fff;border:1px solid #e0e2e8;border-radius:8px;padding:15px;margin-bottom:14px}
+.panel h2{font-size:14.5px;margin:0 0 11px;padding-bottom:7px;border-bottom:1px solid #eef0f4}
+.row{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
+label{color:#555}
+select,input{padding:6px 8px;border:1px solid #c9ccd4;border-radius:4px;font-size:13px;font-family:inherit}
+button.act{padding:7px 15px;border:0;border-radius:4px;background:#2c6fd1;color:#fff;cursor:pointer;font-size:13px;font-family:inherit}
+button.act.ghost{background:#fff;color:#2c6fd1;border:1px solid #2c6fd1}
+button.act.danger{background:#c0392b}
+button.act.ok{background:#2e8b57}
+button.act:disabled{background:#c8ccd4;cursor:not-allowed}
+.seatgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.seat{border:1px solid #c9ccd4;border-radius:6px;padding:8px 4px;text-align:center;font-size:12px;cursor:pointer;background:#fff}
+.seat .no{font-weight:600;font-size:13px}
+.seat .st{margin-top:3px}
+.seat.free{background:#eaf7ee;border-color:#8bc99f}
+.seat.reserved{background:#fff6e0;border-color:#e8c46a}
+.seat.occupied{background:#e8eefc;border-color:#7d9fd8}
+.seat.disabled{background:#f0f0f2;border-color:#c9ccd4;color:#999}
+.seat.sel{outline:2px solid #2c6fd1;outline-offset:1px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid #e0e2e8;padding:7px 9px;text-align:left}
+th{background:#f3f5f9;font-weight:600}
+.msg{padding:9px 12px;border-radius:6px;margin-bottom:11px;font-size:13px}
+.msg.ok{background:#eaf7ee;border:1px solid #8bc99f}
+.msg.bad{background:#fdecea;border:1px solid #e8a9a0}
+.msg.info{background:#eef4fd;border:1px solid #a8c3e8}
+.pill{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;border:1px solid}
+.pill.s1{background:#fff6e0;border-color:#e8c46a}
+.pill.s2{background:#e8eefc;border-color:#7d9fd8}
+.pill.s3{background:#eaf7ee;border-color:#8bc99f}
+.pill.s4{background:#f0f0f2;border-color:#c9ccd4;color:#777}
+.pill.s5{background:#fdecea;border-color:#e8a9a0}
+.note{font-size:12px;color:#777;line-height:1.75}
+.legend{display:flex;gap:14px;font-size:12px;margin-bottom:10px;flex-wrap:wrap}
+.legend i{display:inline-block;width:11px;height:11px;border:1px solid #999;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.mono{font-family:Consolas,monospace;font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>智慧自习室预约与管理系统</h1>
+  <span class="tag">交互原型 v1.0 · 需求验证用</span>
+  <span class="clock" id="clock"></span>
+</header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script>
+"use strict";
+
+/* ===== 规则参数：取值来自 SRS V1.2 附录 A 的候选值，确认状态均为「待确认」 ===== */
+var P = {
+  maxActive:1, minMin:30, maxMin:240, aheadDays:7,
+  ciBefore:15, ciAfter:15, threshold:3, blDays:7, apDays:3,
+  loginFailMax:5, lockMin:15, sessionMin:30,
+  openFrom:"08:00", openTo:"22:00"
+};
+var ROOM = {name:"图书馆三层自习室"};
+var SEED_SEATS = [
+  ["A-01","Z1","带电源","空闲"],["A-02","Z1","普通","空闲"],["A-03","Z1","普通","空闲"],
+  ["A-04","Z1","靠窗","空闲"],["B-01","Z2","普通","空闲"],["B-02","Z2","普通","空闲"],
+  ["B-03","Z2","带电源","空闲"],["C-01","Z3","带电源","空闲"],["C-02","Z3","带电源","空闲"],
+  ["C-03","Z3","普通","停用"]
+];
+var MASK = "李**";
+var seats, me, resvs, vios, apeals, audit, NOW, FLASH, UI, ARGS;
+
+function reset(seed){
+  seats = SEED_SEATS.map(function(s){return {id:s[0],zone:s[1],type:s[2],status:s[3],by:null};});
+  me = {sid:"246003384", name:"杨子涵", status:"正常", vios:0, active:0, fail:0, lockUntil:null};
+  resvs=[]; vios=[]; apeals=[]; audit=[]; FLASH=null;
+  NOW = new Date("2026-10-16T08:30:00");
+  var d="2026-10-16";
+
+  if(seed==="2"){ me.fail=4; }                                   /* 已失败 4 次 */
+  if(seed==="3"){ me.fail=5; me.status="锁定"; me.lockUntil=new Date(NOW.getTime()+P.lockMin*60000); }
+  if(seed==="4"){ NOW=new Date("2026-10-16T10:20:00");           /* 有 1 条生效中违约记录 */
+    mkRes("A-02",d,"09:00","11:00","已违约"); mkSeat("A-02","空闲");
+    vios.push({no:"V20261016001",type:"V1 未签到",when:"2026-10-16 09:15",state:"生效中",reason:"",seat:"A-02",from:"2026-10-16 08:45",to:"2026-10-16 09:15"});
+    me.vios=1; }
+  if(seed==="5"){ NOW=new Date("2026-10-16T10:20:00");           /* 申诉中，待管理员审核 */
+    vios.push({no:"V20261016002",type:"V2 未签退",when:"2026-10-15 22:00",state:"申诉中",reason:"签到设备故障，已按时到场",seat:"B-01",from:"2026-10-15 18:00",to:"2026-10-15 22:00"});
+    me.vios=1; }
+  if(seed==="6"){ NOW=new Date("2026-10-16T10:20:00");           /* 申诉成立已撤销 */
+    vios.push({no:"V20261016003",type:"V1 未签到",when:"2026-10-14 09:15",state:"申诉成立已撤销",reason:"签到二维码损坏",seat:"C-01",from:"2026-10-14 08:45",to:"2026-10-14 09:15"});
+    me.vios=0; }
+  if(seed==="7"){ mkRes("A-05",d,"09:00","11:00","待生效"); mkSeat("A-05","已预约"); }
+  if(seed==="8"){ NOW=new Date("2026-10-16T09:05:00"); mkRes("A-01",d,"09:00","11:00","待签到"); mkSeat("A-01","已预约"); }
+  if(seed==="9"){ NOW=new Date("2026-10-16T09:40:00"); mkRes("A-01",d,"09:00","11:00","待签到"); mkSeat("A-01","已预约"); }
+  if(seed==="10"){ NOW=new Date("2026-10-16T09:05:00"); mkRes("A-01",d,"09:00","11:00","使用中"); mkSeat("A-01","使用中"); }
+  if(seed==="11"){ NOW=new Date("2026-10-16T10:20:00"); }        /* 管理员：A-02 被未预约者占用 */
+  if(seed==="12"){ NOW=new Date("2026-10-16T10:20:00"); mkRes("A-01",d,"09:00","11:00","使用中"); mkSeat("A-01","使用中"); }
+  if(seed==="13"){ NOW=new Date("2026-10-16T10:20:00"); mkRes("A-03",d,"09:00","11:00","待生效"); mkSeat("A-03","已预约"); }
+  if(seed==="14"){ me.status="黑名单"; me.vios=3; }               /* 黑名单期间 */
+  audit=[];
+}
+function mkSeat(id,st){ var s=seats.find(function(x){return x.id===id;}); if(s){s.status=st; s.by = st==="空闲"?null:MASK;} }
+function mkRes(seat,d,a,b,st){ resvs.push({no:"RS"+(20261016000+resvs.length+1),seat:seat,date:d,from:a,to:b,status:st,src:"学生自助"}); if(st==="待生效"||st==="待签到"||st==="使用中") me.active++; }
+function hm(d){ return p2(d.getHours())+":"+p2(d.getMinutes()); }
+function p2(n){ return (n<10?"0":"")+n; }
+function fmt(d){ return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+hm(d); }
+function at(ds,t){ return new Date(ds+"T"+t+":00"); }
+function mins(a,b){ return Math.round((b-a)/60000); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function pill(st){ var k={"待生效":"s1","待签到":"s1","使用中":"s2","已完成":"s3","已取消":"s4","已违约":"s5","生效中":"s5","申诉中":"s1","申诉成立已撤销":"s3","申诉不成立已终结":"s4","正常":"s3","锁定":"s5","黑名单":"s5"}[st]||"s4"; return '<span class="pill '+k+'">'+st+"</span>"; }
+function log(act,target,result){ audit.push({t:fmt(NOW),who:me.name,act:act,target:target,result:result}); }
+
+/* ===== 业务规则 ===== */
+function ruleLogin(){
+  if(me.status==="锁定"){
+    if(NOW >= me.lockUntil){ me.status="正常"; me.fail=0; return {ok:true,why:"锁定期限届满，账号已自动恢复为「正常」，失败计数清零（ST-33、AC-01-04）",st:"ST-33"}; }
+    return {ok:false,why:"账号处于锁定期间，拒绝登录；剩余解锁时间 "+Math.ceil((me.lockUntil-NOW)/60000)+" 分钟（BR-25、ST-34）",st:"ST-34"};
+  }
+  return {ok:true,why:"凭证校验通过，建立会话并按角色加载工作台（ST-32 的通过路径）",st:"—"};
+}
+function loginFail(){
+  if(me.status==="锁定"){ return {ok:false,why:"账号处于锁定期间，拒绝登录；剩余 "+Math.ceil((me.lockUntil-NOW)/60000)+" 分钟（ST-34、AC-01-04）"}; }
+  me.fail++;
+  if(me.fail>=P.loginFailMax){
+    me.status="锁定"; me.lockUntil=new Date(NOW.getTime()+P.lockMin*60000);
+    return {ok:false,locked:true,why:"凭证校验失败，连续失败次数达 "+me.fail+" 次（阈值 "+P.loginFailMax+" 次），账号转入「锁定」，自动解锁时间 "+hm(me.lockUntil)+"（BR-25、ST-32、AC-01-04）"};
+  }
+  return {ok:false,why:"凭证校验失败，连续失败计数 "+me.fail+" / "+P.loginFailMax+"；未达阈值，账号状态保持「正常」（BR-25）"};
+}
+function ruleReserve(seatId,ds,from,to){
+  var s=seats.find(function(x){return x.id===seatId;});
+  var st=at(ds,from), en=at(ds,to), o1=at(ds,P.openFrom), o2=at(ds,P.openTo);
+  if(me.status==="黑名单") return {ok:false,why:"账号处于黑名单期间，禁止发起新预约（BR-13）",st:"ST-02"};
+  if(me.status==="锁定") return {ok:false,why:"账号处于锁定期间，禁止发起新预约（BR-25）",st:"ST-02"};
+  if(me.active>=P.maxActive) return {ok:false,why:"当前已持有 "+me.active+" 条有效预约，达到上限 "+P.maxActive+" 个（BR-04）",st:"ST-02"};
+  if(!(st<en)) return {ok:false,why:"结束时刻必须晚于开始时刻（BR-05）",st:"ST-02"};
+  var dur=mins(st,en);
+  if(dur<P.minMin||dur>P.maxMax&&false||dur>P.maxMin) return {ok:false,why:"单次时长须在 "+P.minMin+"—"+P.maxMin+" 分钟之间，当前 "+dur+" 分钟（BR-05）",st:"ST-02"};
+  if(st<o1||en>o2) return {ok:false,why:"所选时段超出开放时间 "+P.openFrom+"—"+P.openTo+"（BR-03）",st:"ST-02"};
+  if(Math.ceil(mins(NOW,st)/1440)>P.aheadDays) return {ok:false,why:"最多可提前 "+P.aheadDays+" 天预约（BR-06）",st:"ST-02"};
+  if(s.status==="停用") return {ok:false,why:"该座位处于停用状态，暂不可预约（BR-23）",st:"ST-10"};
+  if(s.status!=="空闲") return {ok:false,why:"该座位当前状态为「"+s.status+"」，不再空闲（BR-03）",st:"ST-02"};
+  return {ok:true,why:"校验通过：账号状态、预约上限、时段与时长、提前天数、座位状态均符合要求",st:"ST-01"};
+}
+function ruleCheckin(r,code){
+  var st=at(r.date,r.from), w1=new Date(st.getTime()-P.ciBefore*60000), w2=new Date(st.getTime()+P.ciAfter*60000);
+  if(r.status!=="待签到") return {ok:false,why:"预约单当前状态为「"+r.status+"」，不可签到",st:"ST-16"};
+  if(code!==r.seat) return {ok:false,why:"所扫座位号 "+code+" 与预约单座位 "+r.seat+" 不一致",st:"ST-16"};
+  if(NOW<w1) return {ok:false,why:"早于签到窗口开始时间 "+hm(w1)+"（BR-07）",st:"ST-16"};
+  if(NOW>w2) return {ok:false,why:"已超过签到截止时间 "+hm(w2)+"，不得签到；该预约单将记 V1 未签到违约（BR-08）",st:"ST-16"};
+  return {ok:true,why:"处于签到窗口 "+hm(w1)+"—"+hm(w2)+" 内，签到成功（BR-07）",st:"ST-03 / ST-14"};
+}
+function ruleAppeal(v){
+  var made=new Date(v.when.replace(" ","T")+":00");
+  if(v.state!=="生效中") return {ok:false,why:"该记录当前状态为「"+v.state+"」，不可申诉（仅「生效中」可申诉）",st:"ST-38"};
+  if(Math.ceil((NOW-made)/86400000)>P.apDays) return {ok:false,why:"距记录生成已超过申诉期 "+P.apDays+" 个自然日，拒绝申诉（BR-14）",st:"ST-38"};
+  return {ok:true,why:"记录属于本人、未超过申诉期且未申诉过，申诉受理（BR-14）",st:"ST-35"};
+}
+
+/* ===== UI ===== */
+function render(){
+  document.getElementById("clock").textContent = "模拟当前时间：" + fmt(NOW);
+  var nav=document.getElementById("nav"); nav.innerHTML="";
+  [["student","学生端 R-01"],["admin","自习室管理员 R-02"]].forEach(function(v){
+    var b=document.createElement("button"); b.textContent=v[1];
+    if(UI.view===v[0]) b.className="on";
+    b.onclick=function(){UI.view=v[0]; render();}; nav.appendChild(b);
+  });
+  document.getElementById("app").innerHTML = UI.view==="student" ? viewStudent() : viewAdmin();
+  bind();
+}
+function flash(){ return FLASH ? '<div class="msg '+FLASH.kind+'">'+esc(FLASH.text)+"</div>" : ""; }
+
+function viewStudent(){
+  var tabs=[["login","登录与锁定"],["seat","查询与预约"],["my","我的预约"],["ci","签到 / 签退"],["appeal","我的违约与申诉"],["acc","我的账号"]];
+  var h='<div class="row">';
+  tabs.forEach(function(t){ h+='<button class="act '+(UI.tab===t[0]?"":"ghost")+'" data-tab="'+t[0]+'">'+t[1]+"</button>"; });
+  h+="</div>"+flash();
+  if(UI.tab==="login") h+=tabLogin();
+  if(UI.tab==="seat") h+=tabSeat();
+  if(UI.tab==="my") h+=tabMy();
+  if(UI.tab==="ci") h+=tabCi();
+  if(UI.tab==="appeal") h+=tabAppeal();
+  if(UI.tab==="acc") h+=tabAcc();
+  return h;
+}
+
+function tabLogin(){
+  var h='<div class="panel"><h2>登录与身份认证（UC-01 / FR-01）</h2><table>';
+  h+="<tr><th>学号</th><td class='mono'>"+me.sid+"</td></tr>";
+  h+="<tr><th>姓名</th><td>"+me.name+"</td></tr>";
+  h+="<tr><th>账号状态</th><td>"+pill(me.status)+"　<span class='note'>锁定只限制登录，不影响已有的预约与签到签退（SM-03 图注）</span></td></tr>";
+  h+="<tr><th>连续登录失败次数</th><td>"+me.fail+" / "+P.loginFailMax+"　<span class='note'>达到阈值即转入「锁定」（BR-25、P-20）</span></td></tr>";
+  h+="<tr><th>自动解锁时间</th><td class='mono'>"+(me.lockUntil?fmt(me.lockUntil):"—")+"　<span class='note'>锁定时长 "+P.lockMin+" 分钟（P-21）</span></td></tr>";
+  h+="<tr><th>会话空闲超时</th><td>"+P.sessionMin+" 分钟（P-17、NFR-08）</td></tr></table>";
+  h+='<div class="row" style="margin-top:12px"><label>凭证</label><input id="pw" size="14" value="••••••">';
+  h+='<button class="act" data-do="login-ok">提交登录</button>';
+  h+='<button class="act ghost" data-do="login-fail">模拟凭证错误</button>';
+  h+='<button class="act ghost" data-do="lock-expire">推进到解锁时间</button></div>';
+  h+='<div class="note">校验顺序：先判断账号是否处于锁定（ST-34）→ 凭证是否通过 → 连续失败计数；达到阈值时按 ST-32 转入「锁定」并记录自动解锁时间。</div>';
+  return h+"</div>";
+}
+function tabSeat(){
+  var h='<div class="panel"><h2>查询空闲座位（UC-03 / FR-06）</h2>';
+  h+='<div class="row"><label>自习室</label><select><option>'+ROOM.name+'</option></select><label>日期</label><input type="date" value="2026-10-16"><label>时段</label><input type="time" value="09:00"> — <input type="time" value="11:00"></div>';
+  h+='<div class="legend"><span><i style="background:#eaf7ee"></i>空闲</span><span><i style="background:#fff6e0"></i>已预约</span><span><i style="background:#e8eefc"></i>使用中</span><span><i style="background:#f0f0f2"></i>停用</span><span class="note">使用者姓名脱敏显示</span></div><div class="seatgrid">';
+  seats.forEach(function(s){ h+=seatHTML(s); });
+  h+="</div></div>";
+  h+='<div class="panel"><h2>提交预约（UC-04 / FR-03）</h2><div class="row"><label>目标座位</label><input id="fSeat" size="6" value="'+esc(UI.form.seat)+'"><label>开始</label><input id="fFrom" type="time" value="'+UI.form.from+'"><label>结束</label><input id="fTo" type="time" value="'+UI.form.to+'"><button class="act" data-do="reserve">提交预约</button></div>';
+  h+='<div class="note">按 BR-13（黑名单／锁定）→ BR-04（预约上限）→ BR-05（时长）→ BR-03（开放时间）→ BR-06（提前天数）→ BR-23（座位停用）→ BR-03（座位空闲）的顺序逐项校验，任一不通过即拒绝且不生成预约单。</div></div>';
+  return h;
+}
+function seatHTML(s){
+  var cls={"空闲":"free","已预约":"reserved","使用中":"occupied","停用":"disabled"}[s.status];
+  return '<div class="seat '+cls+(UI.selSeat===s.id?" sel":"")+'" data-seat="'+s.id+'"><div class="no">'+s.id+'</div><div class="st">'+s.status+"</div></div>";
+}
+function tabMy(){
+  var h='<div class="panel"><h2>我的预约（UC-05 取消 / UC-07 签退 / FR-06）</h2>';
+  if(!resvs.length) return h+'<div class="note">当前没有预约记录。</div></div>';
+  h+="<table><tr><th>预约单编号</th><th>座位</th><th>日期</th><th>时段</th><th>来源</th><th>状态</th><th>可执行操作</th></tr>";
+  resvs.forEach(function(r,i){
+    var ops='<span class="note">无</span>';
+    if(r.status==="待生效") ops='<button class="act ghost" data-do="cancel" data-i="'+i+'">取消预约</button>';
+    if(r.status==="使用中") ops='<button class="act ghost" data-do="checkout" data-i="'+i+'">签退</button>';
+    h+="<tr><td class='mono'>"+r.no+"</td><td>"+r.seat+"</td><td>"+r.date+"</td><td>"+r.from+"—"+r.to+"</td><td>"+r.src+"</td><td>"+pill(r.status)+"</td><td>"+ops+"</td></tr>";
+  });
+  return h+"</table></div>";
+}
+function tabCi(){
+  var h='<div class="panel"><h2>签到（UC-06 / FR-04）</h2>';
+  var w=resvs.filter(function(r){return r.status==="待签到";});
+  if(!w.length) return h+'<div class="note">当前没有处于「待签到」状态的预约单，无法签到。</div></div>';
+  var r=w[0], st=at(r.date,r.from);
+  var w1=new Date(st.getTime()-P.ciBefore*60000), w2=new Date(st.getTime()+P.ciAfter*60000);
+  h+='<div class="row"><label>预约单</label><span class="mono">'+r.no+'</span>　<label>座位</label><b>'+r.seat+'</b>　<label>签到窗口</label><span class="mono">'+hm(w1)+" — "+hm(w2)+'</span>　<label>当前时间</label><span class="mono">'+hm(NOW)+"</span></div>";
+  h+='<div class="row"><label>扫码 / 输入座位号</label><input id="ciCode" size="8" value="'+esc(UI.ci)+'"><button class="act" data-do="checkin">确认签到</button></div>';
+  h+='<div class="note">签到成功后：预约单「待签到 → 使用中」，座位「已预约 → 使用中」（ST-03 / ST-14）；窗口外或座位号不匹配时拒绝且状态保持（ST-16）。</div></div>';
+  return h;
+}
+function tabAppeal(){
+  var h='<div class="panel"><h2>我的违约记录（UC-09 / FR-05 / SM-05）</h2>';
+  if(!vios.length) return h+'<div class="note">当前没有违约记录。</div></div>';
+  h+="<table><tr><th>记录编号</th><th>违约类型</th><th>发生时间</th><th>关联座位</th><th>记录状态</th><th>申诉理由</th><th>可执行操作</th></tr>";
+  vios.forEach(function(v,i){
+    var ops = v.state==="生效中" ? '<button class="act ghost" data-do="appeal" data-i="'+i+'">发起申诉</button>' : '<span class="note">—</span>';
+    h+="<tr><td class='mono'>"+v.no+"</td><td>"+v.type+"</td><td class='mono'>"+v.when+"</td><td>"+v.seat+"</td><td>"+pill(v.state)+"</td><td>"+(v.reason?esc(v.reason):"—")+"</td><td>"+ops+"</td></tr>";
+  });
+  h+="</table>";
+  h+='<div class="row" style="margin-top:11px"><label>申诉理由</label><input id="apReason" size="42" value="'+esc(UI.apReason)+'"><span class="note">申诉期为记录生成后 '+P.apDays+' 个自然日（P-09、BR-14）</span></div>';
+  h+='<div class="note">状态流转：生效中 →（ST-35 发起申诉）申诉中 →（ST-36 判定成立）申诉成立已撤销 / （ST-37 判定不成立）申诉不成立已终结；超过申诉期或已申诉过时再次申诉被拒且状态保持（ST-38）。判定成立时不再参与有效违约计数并回退计数。</div></div>';
+  return h;
+}
+function tabAcc(){
+  var h='<div class="panel"><h2>我的账号（FR-08 / FR-10）</h2><table>';
+  h+="<tr><th>学号</th><td class='mono'>"+me.sid+"</td></tr><tr><th>姓名</th><td>"+me.name+"</td></tr>";
+  h+="<tr><th>账号状态</th><td>"+pill(me.status)+"</td></tr>";
+  h+="<tr><th>有效违约次数</th><td>"+me.vios+" 次（达到 "+P.threshold+" 次进入黑名单，BR-12、P-07）</td></tr>";
+  h+="<tr><th>当前有效预约</th><td>"+me.active+" 条（上限 "+P.maxActive+" 个，BR-04、P-01）</td></tr></table></div>";
+  return h;
+}
+function viewAdmin(){
+  var h=flash();
+  h+='<div class="panel"><h2>实时座位视图（UC-10 / FR-07）</h2>';
+  h+='<div class="row"><label>自习室</label><select><option>'+ROOM.name+'</option></select><button class="act ghost" data-do="refresh">手动刷新</button><span class="note">视图随 FR-11 的 10 秒周期自动更新（BR-20）</span></div>';
+  h+='<div class="seatgrid">';
+  seats.forEach(function(s){ h+=seatHTML(s); });
+  h+="</div></div>";
+  h+='<div class="panel"><h2>座位处置（UC-10 备选流 / ST-31、ST-13）</h2>';
+  if(!UI.selSeat){ h+='<div class="note">请在上方座位矩阵中选择一个座位。当前选中：无</div>'; }
+  else {
+    var s=seats.find(function(x){return x.id===UI.selSeat;});
+    var busy=resvs.filter(function(r){return r.seat===s.id&&(r.status==="待生效"||r.status==="待签到"||r.status==="使用中");})[0];
+    h+='<div class="row"><label>选中座位</label><b>'+s.id+'</b>　<label>当前状态</label>'+pill(s.status)+'　<label>使用者</label>'+(s.by?esc(s.by):"—")+'　<label>关联有效预约</label>'+(busy?busy.no:"无")+"</div>";
+    h+='<div class="row"><button class="act danger" data-do="violate">手动违约登记（V3）</button><button class="act ghost" data-do="release">提前释放座位（ST-13）</button></div>';
+    h+='<div class="row"><label>处置原因（BR-22 必填）</label><input id="reason" size="40" value="'+esc(UI.reason)+'"></div>';
+    h+='<div class="note">未填写原因时提交被拒绝且状态保持（AC-07-02、AC-07-06）；登记成功后生成 V3 违约记录、座位释放为「空闲」、当事人收到通知、操作写入审计日志（ST-31）。</div>';
+  }
+  h+="</div>";
+  h+='<div class="panel"><h2>违约申诉审核（UC-09 / ST-36、ST-37）</h2>';
+  var pend=vios.filter(function(v){return v.state==="申诉中";});
+  if(!pend.length){ h+='<div class="note">当前没有待审核的申诉。可切换到学生端「我的违约与申诉」发起申诉后再回到本页。</div>'; }
+  else {
+    h+="<table><tr><th>记录编号</th><th>违约类型</th><th>申诉理由</th><th>记录状态</th><th>审核结论</th></tr>";
+    pend.forEach(function(v,i){
+      h+="<tr><td class='mono'>"+v.no+"</td><td>"+v.type+"</td><td>"+esc(v.reason)+"</td><td>"+pill(v.state)+"</td>"
+        +'<td><button class="act ok" data-do="judge-ok" data-i="'+i+'">判定成立（撤销并回退计数）</button> '
+        +'<button class="act ghost" data-do="judge-no" data-i="'+i+'">判定不成立</button></td></tr>';
+    });
+    h+="</table>";
+    h+='<div class="note">判定成立：记录转为「申诉成立已撤销」，不再参与有效违约计数并回退计数（ST-36、AC-05-03）；判定不成立：转为「申诉不成立已终结」并保持有效（ST-37、AC-05-07）。</div>';
+  }
+  h+="</div>";
+  h+='<div class="panel"><h2>本次操作产生的审计日志（FR-14 / DM-13）</h2>';
+  if(!audit.length) h+='<div class="note">暂无记录。管理员的处置操作会在此留痕。</div>';
+  else {
+    h+="<table><tr><th>时间</th><th>操作人</th><th>操作类型</th><th>目标对象</th><th>结果</th></tr>";
+    audit.forEach(function(a){ h+="<tr><td class='mono'>"+a.t+"</td><td>"+a.who+"</td><td>"+a.act+"</td><td>"+a.target+"</td><td>"+esc(a.result)+"</td></tr>"; });
+    h+="</table>";
+  }
+  return h+"</div>";
+}
+
+/* ===== 绑定与动作 ===== */
+function bind(){
+  document.querySelectorAll("[data-tab]").forEach(function(b){ b.onclick=function(){UI.tab=b.getAttribute("data-tab"); render();}; });
+  document.querySelectorAll("[data-seat]").forEach(function(d){ d.onclick=function(){UI.selSeat=d.getAttribute("data-seat"); UI.form.seat=UI.selSeat; render();}; });
+  document.querySelectorAll("[data-do]").forEach(function(b){
+    b.onclick=function(){
+      ["fSeat:fSeat","fFrom:fFrom","fTo:fTo","ciCode:ci","reason:reason","apReason:apReason"].forEach(function(pair){
+        var k=pair.split(":")[0], id=pair.split(":")[1], el=document.getElementById(id);
+        if(!el) return;
+        if(k==="fSeat") UI.form.seat=el.value.trim();
+        if(k==="fFrom") UI.form.from=el.value;
+        if(k==="fTo") UI.form.to=el.value;
+        if(k==="ci") UI.ci=el.value.trim();
+        if(k==="reason") UI.reason=el.value;
+        if(k==="apReason") UI.apReason=el.value;
+      });
+      ACT[b.getAttribute("data-do")](b); render();
+    };
+  });
+}
+var ACT={
+  "login-ok":function(){ var r=ruleLogin(); FLASH={kind:r.ok?"ok":"bad",text:(r.ok?"登录成功：":"登录被拒绝：")+r.why}; if(r.ok) log("登录","本账号","成功"); },
+  "login-fail":function(){ var r=loginFail(); FLASH={kind:r.ok?"ok":"bad",text:(r.locked?"账号已锁定：":"登录被拒绝：")+r.why}; log("登录","本账号",r.locked?"锁定":"凭证错误"); },
+  "lock-expire":function(){ if(me.status!=="锁定"){FLASH={kind:"info",text:"当前账号未处于锁定状态，无需解锁（SM-03 仅「锁定」态可触发 ST-33）"};return;} NOW=new Date(me.lockUntil.getTime()+60000); var r=ruleLogin(); FLASH={kind:"ok",text:"模拟时间推进到 "+fmt(NOW)+"："+r.why}; log("自动解锁","本账号","成功"); },
+  reserve:function(){ var r=ruleReserve(UI.form.seat,"2026-10-16",UI.form.from,UI.form.to);
+    if(!r.ok){ FLASH={kind:"bad",text:"预约被拒绝："+r.why+"　→ 不生成预约单，座位状态保持（"+r.st+"）"}; return; }
+    mkRes(UI.form.seat,"2026-10-16",UI.form.from,UI.form.to,"待生效"); mkSeat(UI.form.seat,"已预约");
+    FLASH={kind:"ok",text:"预约成功："+r.why+"　→ 生成预约单 "+resvs[resvs.length-1].no+"，「"+UI.form.seat+"」由「空闲」变为「已预约」（ST-01）；已发送预约成功通知（UC-15）"}; },
+  cancel:function(b){ var r=resvs[+b.getAttribute("data-i")]; if(NOW>=at(r.date,r.from)){ FLASH={kind:"bad",text:"取消被拒绝：当前已过开始时刻 "+r.from+"，仅开始前可取消（BR-10）→ 预约单保持「待生效」，座位保持「已预约」（ST-12、AC-04-02）"}; return; }
+    r.status="已取消"; me.active--; mkSeat(r.seat,"空闲"); FLASH={kind:"ok",text:"取消成功："+r.no+" 变为「已取消」，座位「"+r.seat+"」回到「空闲」，本次取消不记违约（ST-04 / ST-12）"}; },
+  checkin:function(){ var r=resvs.filter(function(x){return x.status==="待签到";})[0]; var res=ruleCheckin(r,UI.ci);
+    if(!res.ok){ FLASH={kind:"bad",text:"签到被拒绝："+res.why+"　→ 预约单保持「待签到」，座位保持「已预约」，未产生签到记录（"+res.st+"）"}; return; }
+    r.status="使用中"; mkSeat(r.seat,"使用中"); FLASH={kind:"ok",text:"签到成功："+res.why+"　→ 预约单「待签到 → 使用中」，座位「"+r.seat+"」同步变为「使用中」（ST-03 / ST-14）"}; },
+  checkout:function(b){ var r=resvs[+b.getAttribute("data-i")]; r.status="已完成"; me.active--; mkSeat(r.seat,"空闲");
+    FLASH={kind:"ok",text:"签退成功："+r.no+" 变为「已完成」，座位「"+r.seat+"」回到「空闲」，实际使用时长已记录（ST-06 / ST-17）；该预约可被评价。"}; },
+  violate:function(){ var s=seats.find(function(x){return x.id===UI.selSeat;});
+    if(!UI.reason.trim()){ FLASH={kind:"bad",text:"登记被拒绝：违约原因必填（BR-22）→ 座位状态保持「"+s.status+"」，未生成违约记录（AC-07-02）"}; log("手动违约登记",s.id,"拒绝：原因未填写"); return; }
+    var busy=resvs.filter(function(r){return r.seat===s.id&&(r.status==="待生效"||r.status==="待签到"||r.status==="使用中");})[0];
+    vios.push({no:"V"+(20261016100+vios.length),type:"V3 管理员手动登记",when:fmt(NOW),state:"生效中",reason:"",seat:s.id,from:fmt(NOW),to:fmt(NOW)});
+    me.vios++; if(busy) busy.status="已违约"; mkSeat(s.id,"空闲");
+    log("手动违约登记",s.id,"成功："+vios[vios.length-1].no+"；原因："+UI.reason);
+    FLASH={kind:"ok",text:"登记成功：生成 "+vios[vios.length-1].no+"（V3 手动登记），座位「"+s.id+"」释放为「空闲」，当事人收到通知，操作与前后状态写入审计日志（ST-31 / AC-07-03）"}; },
+  release:function(){ var s=seats.find(function(x){return x.id===UI.selSeat;});
+    if(!UI.reason.trim()){ FLASH={kind:"bad",text:"操作被拒绝：提前释放座位须填写原因（BR-22）→ 预约单与座位状态保持（AC-07-06）"}; return; }
+    var busy=resvs.filter(function(r){return r.seat===s.id&&(r.status==="待生效"||r.status==="待签到"||r.status==="使用中");})[0];
+    if(busy) busy.status="已取消"; mkSeat(s.id,"空闲"); log("提前释放座位",s.id,"成功；原因："+UI.reason);
+    FLASH={kind:"ok",text:"已释放："+(busy?busy.no+" 变为「已取消」，":"")+"座位「"+s.id+"」回到「空闲」，学生收到通知，操作写入审计日志（ST-13 / AC-07-06）"}; },
+  appeal:function(b){ var v=vios[+b.getAttribute("data-i")];
+    if(!UI.apReason.trim()){ FLASH={kind:"bad",text:"申诉被拒绝：申诉理由必填　→ 记录保持「生效中」"}; return; }
+    var r=ruleAppeal(v);
+    if(!r.ok){ FLASH={kind:"bad",text:"申诉被拒绝："+r.why+"　→ 记录保持「生效中」，记录与有效违约计数均不变（"+r.st+"、AC-05-04）"}; return; }
+    v.state="申诉中"; v.reason=UI.apReason; v.from=fmt(new Date(NOW.getTime()-3600000)); v.to=fmt(NOW);
+    FLASH={kind:"ok",text:"申诉成功："+r.why+"　→ 记录 "+v.no+" 由「生效中」变为「申诉中」，已通知管理员待复核（ST-35）"}; },
+  "judge-ok":function(b){ var v=vios.filter(function(x){return x.state==="申诉中";})[+b.getAttribute("data-i")];
+    v.state="申诉成立已撤销"; me.vios=Math.max(0,me.vios-1); log("申诉复核",v.no,"判定成立：记录撤销，计数回退");
+    FLASH={kind:"ok",text:"判定成立："+v.no+" 转为「申诉成立已撤销」，不再参与有效违约计数并回退计数；账号状态按回退后的计数重算（ST-36 / AC-05-03）"}; },
+  "judge-no":function(b){ var v=vios.filter(function(x){return x.state==="申诉中";})[+b.getAttribute("data-i")];
+    v.state="申诉不成立已终结"; log("申诉复核",v.no,"判定不成立：记录保持有效");
+    FLASH={kind:"ok",text:"判定不成立："+v.no+" 转为「申诉不成立已终结」，记录保持有效并继续参与有效违约累计（ST-37 / AC-05-07）"}; },
+  refresh:function(){ FLASH={kind:"info",text:"已手动刷新：视图数据随 FR-11 的 10 秒周期自动更新（BR-20、AC-11-01）"}; }
+};
+
+/* ===== 场景预置 ===== */
+function preset(q){
+  reset(q.get("seed")||"1");
+  if(q.get("view")) UI.view=q.get("view");
+  if(q.get("tab")) UI.tab=q.get("tab");
+  if(q.get("sel")) UI.selSeat=q.get("sel");
+  if(q.get("ci")!==null) UI.ci=q.get("ci");
+  if(q.get("reason")!==null) UI.reason=q.get("reason");
+  if(q.get("apReason")!==null) UI.apReason=q.get("apReason");
+  if(q.get("now")) NOW=new Date(q.get("now"));
+  if(q.get("seat")) UI.form.seat=q.get("seat");
+  if(q.get("from")) UI.form.from=q.get("from");
+  if(q.get("to")) UI.form.to=q.get("to");
+  var act=q.get("do");
+  if(act && ACT[act]) ACT[act]({getAttribute:function(){return "0";}});
+}
+UI={view:"student",tab:"login",selSeat:null,form:{seat:"A-01",from:"09:00",to:"11:00"},ci:"A-01",reason:"",apReason:"签到设备故障，已按时到场"};
+ARGS=new URLSearchParams(location.search);
+preset(ARGS);
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+/* Sprint 5 增量样式：评价与投诉 */
+.star-rating { display: inline-flex; gap: 4px; align-items: center; }
+.star-rating input { width: auto; }
+.eval-target { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.eval-target .mono { color: #51607a; }
+.eval-comment { min-height: 70px; }
+.complaint-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.complaint-form label { display: grid; gap: 5px; color: #4a576e; font-size: 12.5px; font-weight: 600; }
+.complaint-form input, .complaint-form select, .complaint-form textarea { width: 100%; }
+.complaint-form .full { grid-column: 1 / -1; }
+.complaint-card { border: 1px solid var(--line); border-radius: 10px; padding: 15px; background: #fcfdff; }
+.complaint-card h3 { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.complaint-card p { margin: 7px 0; color: #536077; }
+.complaint-feedback { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--navy-2); background: #f2f7ff; color: #354866; border-radius: 0 6px 6px 0; }
+.complaint-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.complaint-actions input { flex: 1; min-width: 190px; }
+.admin-complaint { border: 1px solid var(--line); border-radius: 10px; padding: 15px; background: #fcfdff; }
+.admin-complaint textarea { min-height: 60px; }
+.masked-box { background: #f5f7fb; border: 1px dashed #c8d2e2; border-radius: 6px; padding: 7px 9px; font-size: 12px; color: #68758a; }
+@media (max-width: 760px) {
+  .complaint-form { grid-template-columns: 1fr; }
+}

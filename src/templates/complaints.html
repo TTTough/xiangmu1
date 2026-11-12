@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}投诉与反馈 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>投诉与反馈（FR-09 / AC-09-01—06）</h2>
+      <p class="note">投诉须实名提交。管理员受理并反馈后，可确认反馈关闭，或申请复核一次；反馈后超过确认时限未复核将由系统自动关闭。被投诉学生信息脱敏展示。</p>
+    </div>
+  </div>
+  <div id="complaint-message"></div>
+  <div class="complaint-form">
+    <label>投诉对象类型
+      <select id="c-object">
+        <option value="座位或自习室">座位或自习室</option>
+        <option value="其他用户">其他用户</option>
+        <option value="管理员">管理员</option>
+      </select>
+    </label>
+    <label>投诉类型<input id="c-type" placeholder="如：环境设施 / 占座 / 服务态度"></label>
+    <label>对象描述（可选）<input id="c-ref" placeholder="如：A-01 / 图书馆三层自习室"></label>
+    <label>被投诉学生学号（其他用户时必填）<input id="c-student-no" placeholder="如：246003385"></label>
+    <label class="full">投诉内容<textarea id="c-content" placeholder="请客观描述问题与发生时间"></textarea></label>
+    <label class="full">证据附件说明（可选）<input id="c-evidence" placeholder="如：现场照片文件名"></label>
+    <button class="act full" id="btn-submit-complaint" type="button">提交投诉</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>我的投诉</h2>
+  {% if complaints %}
+  <div class="item-list">
+    {% for c in complaints %}
+    <article class="complaint-card">
+      <h3>{{ c.complaint_no }}
+        <span class="pill {{ {'待受理':'s1','处理中':'s2','已回复':'s3','已关闭':'s4'}.get(c.status, 's4') }}">{{ c.status }}</span>
+        <span class="note">{{ c.complaint_type }}</span>
+      </h3>
+      <p><strong>对象：</strong>{{ c.object_type }}{% if c.object_ref %} · {{ c.object_ref }}{% endif %}</p>
+      {% if c.complained_user %}
+      <p class="masked-box">被投诉学生：{{ c.complained_user.name_masked }}（{{ c.complained_user.student_no_masked }}），联系方式：{{ c.complained_user.contact_masked }}</p>
+      {% endif %}
+      <p><strong>内容：</strong>{{ c.content }}</p>
+      {% if c.feedback %}
+      <div class="complaint-feedback"><strong>管理员反馈：</strong>{{ c.feedback }}<br><span class="note">{{ c.feedback_at }}</span></div>
+      {% endif %}
+      {% if c.close_reason %}<p class="note">关闭原因：{{ c.close_reason }}（{{ c.closed_at }}）</p>{% endif %}
+      {% if c.status == '已回复' %}
+      <div class="complaint-actions">
+        <button class="act ok btn-confirm" type="button" data-id="{{ c.id }}">确认反馈并关闭</button>
+        {% if c.can_review %}
+        <button class="act ghost btn-review" type="button" data-id="{{ c.id }}">申请复核（仅一次）</button>
+        {% endif %}
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="empty">暂无投诉记录。</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function msg(kind, text) {
+    el("complaint-message").innerHTML = '<div class="msg ' + kind + '">' +
+      String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  el("btn-submit-complaint").addEventListener("click", function () {
+    var button = this;
+    var body = {
+      object_type: el("c-object").value,
+      complaint_type: el("c-type").value.trim(),
+      object_ref: el("c-ref").value.trim(),
+      content: el("c-content").value.trim(),
+      evidence_attachment: el("c-evidence").value.trim()
+    };
+    if (el("c-student-no").value.trim()) { body.complained_student_no = el("c-student-no").value.trim(); }
+    button.disabled = true;
+    fetch("/api/complaints", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (result) {
+        button.disabled = false;
+        if (!result.ok) { msg("bad", "投诉提交失败：" + result.data.error.message); return; }
+        msg("ok", "投诉已提交，等待管理员受理。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        msg("bad", "投诉请求失败，请重试。");
+      });
+  });
+  document.querySelectorAll(".btn-confirm").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!window.confirm("确认反馈并关闭该投诉？")) { return; }
+      button.disabled = true;
+      fetch("/api/complaints/" + button.dataset.id + "/confirm", {
+        method: "POST", headers: {"Accept": "application/json"}
+      }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+        .then(function (result) {
+          if (!result.ok) {
+            button.disabled = false;
+            msg("bad", "确认失败：" + result.data.error.message);
+            return;
+          }
+          msg("ok", "投诉已确认关闭。");
+          window.setTimeout(function () { window.location.reload(); }, 900);
+        });
+    });
+  });
+  document.querySelectorAll(".btn-review").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!window.confirm("复核仅允许一次，确认提交？")) { return; }
+      button.disabled = true;
+      fetch("/api/complaints/" + button.dataset.id + "/review", {
+        method: "POST", headers: {"Accept": "application/json"}
+      }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+        .then(function (result) {
+          if (!result.ok) {
+            button.disabled = false;
+            msg("bad", "复核申请失败：" + result.data.error.message);
+            return;
+          }
+          msg("ok", "复核申请已提交，投诉单回到处理中。");
+          window.setTimeout(function () { window.location.reload(); }, 900);
+        });
+    });
+  });
+})();
+</script>
+{% endblock %}

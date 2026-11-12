@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}用户查询 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>用户查询（FR-08 / V1.6）</h2>
+      <p class="note">仅系统管理员可查询用户；联系方式脱敏展示。自习室管理员不可查看他人完整信息。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('sysadmin_home') }}">返回工作台</a>
+  </div>
+  <div class="records-filter">
+    <label>学号<input id="u-student-no" placeholder="模糊匹配"></label>
+    <label>姓名<input id="u-name" placeholder="模糊匹配"></label>
+    <label>角色
+      <select id="u-role">
+        <option value="">全部</option>
+        <option value="student">学生</option>
+        <option value="admin">自习室管理员</option>
+        <option value="sysadmin">系统管理员</option>
+        <option value="logistics">后勤</option>
+      </select>
+    </label>
+    <button class="act" id="btn-query-users" type="button">查询</button>
+  </div>
+  <div id="user-message"></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>学号</th><th>姓名</th><th>院系</th><th>角色</th><th>状态</th><th>有效违约</th><th>联系方式</th></tr></thead>
+      <tbody id="user-body"><tr><td colspan="7" class="note">尚未查询</td></tr></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function esc(v) { return String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function msg(kind, text) {
+    el("user-message").innerHTML = '<div class="msg ' + kind + '">' + esc(text) + '</div>';
+  }
+  function load() {
+    var q = new URLSearchParams();
+    if (el("u-student-no").value.trim()) q.set("student_no", el("u-student-no").value.trim());
+    if (el("u-name").value.trim()) q.set("name", el("u-name").value.trim());
+    if (el("u-role").value) q.set("role", el("u-role").value);
+    fetch("/api/system/users?" + q.toString(), {headers: {"Accept": "application/json"}})
+      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (result) {
+        if (!result.ok) { msg("bad", result.data.error.message); return; }
+        el("user-message").innerHTML = "";
+        if (!result.data.items.length) {
+          el("user-body").innerHTML = '<tr><td colspan="7" class="note">无匹配用户</td></tr>';
+          return;
+        }
+        el("user-body").innerHTML = result.data.items.map(function (u) {
+          return '<tr><td class="mono">' + esc(u.student_no) + '</td><td>' + esc(u.name) +
+            '</td><td>' + esc(u.department) + '</td><td>' + esc(u.role) + '</td><td>' +
+            esc(u.account_status) + '</td><td>' + esc(u.effective_violation_count) +
+            '</td><td>' + esc(u.contact_masked) + '</td></tr>';
+        }).join("");
+      }).catch(function () { msg("bad", "查询失败，请重试。"); });
+  }
+  el("btn-query-users").addEventListener("click", load);
+  load();
+})();
+</script>
+{% endblock %}

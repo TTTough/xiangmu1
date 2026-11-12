@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}登录 · 智慧自习室预约与管理系统{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <section class="panel login-panel">
+    <h2>登录与身份认证（UC-01 / FR-01）</h2>
+    <p class="note">本版为模拟 SSO：使用学号与演示密码登录。权限与账号状态均由服务端校验，前端入口仅作呈现。</p>
+    <form method="post" action="{{ url_for('login') }}" class="stack">
+      <label for="student_no">学号</label>
+      <input id="student_no" name="student_no" autocomplete="username" required placeholder="请输入学号">
+      <label for="password">密码</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码">
+      <button class="act" type="submit">登录</button>
+    </form>
+    <div class="demo-box">
+      <h3>演示账号</h3>
+      <table>
+        <tr><th>角色</th><th>学号</th><th>密码</th><th>登录后入口</th></tr>
+        <tr><td>学生 R-01</td><td class="mono">246003384</td><td class="mono">student123</td><td>学生工作台</td></tr>
+        <tr><td>自习室管理员 R-02</td><td class="mono">900000001</td><td class="mono">admin123</td><td>管理工作台</td></tr>
+        <tr><td>系统管理员 R-03</td><td class="mono">900000002</td><td class="mono">sysadmin123</td><td>审计日志</td></tr>
+        <tr><td>后勤部门 R-04</td><td class="mono">900000003</td><td class="mono">logistics123</td><td>数据分析</td></tr>
+      </table>
+      <p class="note">连续失败 5 次账号锁定 15 分钟；锁定只限制登录，不影响已有预约与签到签退。参数来源：附录 A P-20、P-21（教学模拟已确认）。</p>
+    </div>
+  </section>
+
+  <section class="panel side-panel">
+    <h2>本版范围</h2>
+    <ul class="plain">
+      <li>登录、角色隔离与账号锁定（AC-01-01—04）</li>
+      <li>座位筛选、预约与开始前取消（AC-03、AC-04-01—02、AC-06-01）</li>
+      <li>签到/签退与自动违约扫描（AC-04-03—06、AC-05-01—02、AC-05-06）</li>
+      <li>违约申诉复核与黑名单信用状态（AC-05-03—07、AC-10-01—05）</li>
+      <li>资源维护、实时座位、V3 手动违约与座位历史（AC-02-01—04、AC-07-01—06）</li>
+      <li>记录查询分页、数据隔离与审计日志筛选（AC-06-02—04、AC-14-01—04）</li>
+      <li>评价真实使用校验、隐藏管理与投诉反馈闭环（AC-08-01—04、AC-09-01—06）</li>
+      <li>数据分析 10 秒局部刷新与通知中心（AC-11-01—06、AC-12-01—03）</li>
+      <li>规则参数配置、范围校验、变更留痕与全量回归（AC-13-01—04）</li>
+      <li>S8 架构基线对齐：sysadmin 权限、P-15 范围与参数生效点（Q-13、Q-18、Q-32）</li>
+      <li>S9 参数补种、投诉关闭路径、黑名单直接加入/延期、管理员代创建（FR-03/09/10）</li>
+      <li>S10 用户信息、授权维护、阈值提醒与 CSV 导出（FR-08/11/12、BR-21）</li>
+      <li>S11 预约修改：跨自习室、最多一次（AC-04-07/08）</li>
+    </ul>
+    <div class="notice">
+      <strong>全量覆盖：</strong>70 / 70 AC 均有自动化测试；详见 <span class="mono">docs/AC-mapping.md</span>。
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}代创建预约 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>管理员代创建预约（FR-03 / BR-22）</h2>
+      <p class="note">为指定学生代创建预约，复用学生预约的时段、开放时间、上限与冲突校验；创建来源记为「管理员代创建」，原因写入审计日志，学生端可见。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_home') }}">返回管理工作台</a>
+  </div>
+  <div id="proxy-message"></div>
+  <div class="form-grid">
+    <label>学生学号<input id="p-student-no" placeholder="如 246003384"></label>
+    <label>自习室座位<select id="p-seat"></select></label>
+    <label>预约日期<input id="p-date" type="date" value="{{ default_date }}"></label>
+    <label>开始<input id="p-start" type="time" value="09:00"></label>
+    <label>结束<input id="p-end" type="time" value="11:00"></label>
+    <label class="full">代创建原因<input id="p-reason" placeholder="如学生无法自行操作，现场核实后代办"></label>
+    <button class="act full" id="btn-proxy-create" type="button">代创建预约</button>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function msg(kind, text) {
+    el("proxy-message").innerHTML = '<div class="msg ' + kind + '">' +
+      String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  fetch("/api/admin/resources", {headers: {"Accept": "application/json"}})
+    .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+    .then(function (result) {
+      if (!result.ok) { msg("bad", "座位加载失败：" + result.data.error.message); return; }
+      var select = el("p-seat");
+      result.data.rooms.forEach(function (room) {
+        room.zones.forEach(function (zone) {
+          zone.seats.forEach(function (seat) {
+            if (seat.is_bookable === 0 || seat.status === "停用") { return; }
+            var option = document.createElement("option");
+            option.value = seat.id;
+            option.textContent = room.name + " / " + zone.name + " / " + seat.code + " · " + seat.seat_type;
+            select.appendChild(option);
+          });
+        });
+      });
+    });
+  el("btn-proxy-create").addEventListener("click", function () {
+    var button = this;
+    var body = {
+      student_no: el("p-student-no").value.trim(),
+      seat_id: el("p-seat").value,
+      reservation_date: el("p-date").value,
+      start_time: el("p-start").value,
+      end_time: el("p-end").value,
+      reason: el("p-reason").value.trim()
+    };
+    if (!body.student_no || !body.seat_id || !body.reason) {
+      msg("bad", "学生学号、座位与原因必填。"); return;
+    }
+    button.disabled = true;
+    fetch("/api/admin/reservations", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (result) {
+        button.disabled = false;
+        if (!result.ok) { msg("bad", "代创建失败：" + result.data.error.message); return; }
+        msg("ok", "代创建成功：" + result.data.reservation.reservation_no + "，学生端可见。");
+      }).catch(function () {
+        button.disabled = false;
+        msg("bad", "请求失败，请重试。");
+      });
+  });
+})();
+</script>
+{% endblock %}

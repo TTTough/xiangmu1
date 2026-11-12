@@ -1,0 +1,60 @@
+/* Sprint 2 增量样式：签到、违约、申诉、黑名单、扫描工作台 */
+textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 9px 10px;
+  border: 1px solid #c9d0db;
+  border-radius: 7px;
+  resize: vertical;
+  color: var(--ink);
+  font: inherit;
+}
+textarea:focus { outline: 2px solid rgba(44,111,209,.2); border-color: var(--navy-2); }
+.hero-counts { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-counts .hero-stat { min-width: 120px; }
+.section-lead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.section-lead h2 { margin-bottom: 4px; }
+.inline-form { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.inline-form select, .inline-form input { min-width: 90px; }
+.item-list { display: grid; gap: 12px; }
+.work-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 15px;
+  background: #fcfdff;
+}
+.work-item h3 { margin: 0 0 7px; }
+.work-meta { display: flex; flex-wrap: wrap; gap: 9px 18px; color: #5d687b; font-size: 12.5px; }
+.work-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.work-actions input { min-width: 200px; flex: 1; }
+.reason-box { display: grid; gap: 7px; margin-top: 10px; }
+.reason-box label { color: #4b576d; font-size: 12.5px; font-weight: 600; }
+.actions-stack { display: flex; gap: 7px; flex-wrap: wrap; }
+.credit-card {
+  border-radius: 13px;
+  padding: 22px;
+  color: #fff;
+  background: linear-gradient(115deg, #17355d, #2a5a9b);
+  margin-bottom: 16px;
+}
+.credit-card.blacklisted { background: linear-gradient(115deg, #5a1f1a, #a13a2f); }
+.credit-card.normal { background: linear-gradient(115deg, #17452d, #2e8b57); }
+.credit-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.credit-status { font-size: 34px; font-weight: 800; margin: 0; }
+.credit-card .note { color: #dfe9fb; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; margin-top: 18px; }
+.metric { padding: 12px; border-radius: 9px; background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.17); }
+.metric span { display: block; color: #dbe6f8; font-size: 12px; }
+.metric strong { display: block; margin-top: 5px; font-size: 20px; }
+.condition-list { margin: 0; padding-left: 20px; line-height: 1.9; color: #44516b; }
+.audit-note { background: #f6f8fc; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; color: #556175; font-size: 12.5px; }
+.scan-result { margin-top: 15px; }
+.scan-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; }
+.scan-metric { text-align: center; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: #f9fbff; }
+.scan-metric strong { display: block; font-size: 28px; color: var(--navy); }
+.scan-metric span { color: var(--muted); font-size: 12px; }
+.status-large { font-size: 18px; font-weight: 700; }
+@media (max-width: 800px) {
+  .metric-grid, .scan-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+  .work-actions input { min-width: 120px; }
+}

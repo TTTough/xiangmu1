@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}维护扫描 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>维护扫描（FR-05 / FR-10）</h2>
+      <p class="note">扫描会推进「待生效 → 待签到」，生成超时未签到 V1、超时未签退 V2 违约，并恢复已到期黑名单。后台定时线程按 P-15 参数每 <strong>{{ scan_seconds }}</strong> 秒执行；本页可手动触发同一服务。</p>
+      <p class="note">服务端当前时间：<span class="mono">{{ now_text }}</span></p>
+    </div>
+    <button class="act" id="btn-scan" type="button">立即执行维护扫描</button>
+  </div>
+  <div id="scan-message"></div>
+  <div id="scan-result" class="scan-result"></div>
+  <div class="audit-note" style="margin-top:16px">
+    扫描仅处理服务端时间已到期的事实；同一预约单同一违约事实不会重复生成记录。扫描产生的违约与黑名单变化均写入审计日志。
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function show(kind, text) {
+    document.getElementById("scan-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.getElementById("btn-scan").addEventListener("click", function () {
+    var button = this;
+    button.disabled = true;
+    show("info", "正在执行扫描……");
+    fetch("/api/admin/scan", {
+      method: "POST",
+      headers: {"Accept": "application/json"}
+    }).then(function (response) {
+      return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+    }).then(function (result) {
+      button.disabled = false;
+      if (!result.ok) {
+        show("bad", "扫描失败：" + result.data.error.message);
+        return;
+      }
+      var s = result.data.scan;
+      show("ok", "扫描完成（" + result.data.at + "）。");
+      var metrics = [
+        ["待签到推进", s.promoted_to_checkin],
+        ["V1 未签到", s.v1_created],
+        ["V2 未签退", s.v2_created],
+        ["黑名单到期", s.blacklists_expired]
+      ];
+      document.getElementById("scan-result").innerHTML = '<div class="scan-grid">' +
+        metrics.map(function (item) {
+          return '<div class="scan-metric"><strong>' + item[1] + '</strong><span>' + item[0] + '</span></div>';
+        }).join("") + '</div>';
+    }).catch(function () {
+      button.disabled = false;
+      show("bad", "扫描请求失败，请重试。");
+    });
+  });
+})();
+</script>
+{% endblock %}

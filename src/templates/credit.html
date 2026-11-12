@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}信用状态 · 智慧自习室{% endblock %}
+{% block content %}
+{% set is_black = credit.is_blacklisted %}
+<section class="credit-card {{ 'blacklisted' if is_black else 'normal' }}">
+  <div class="credit-head">
+    <div>
+      <p class="eyebrow" style="color:#d9e5fa">R-01 学生信用状态 · FR-10 / AC-10-05</p>
+      <p class="credit-status">{{ credit.account_status }}</p>
+      <p class="note">{{ '当前处于黑名单期间，禁止发起新预约；已有预约仍可签到签退。' if is_black else '当前可正常发起预约。' }}</p>
+    </div>
+    <div class="hero-stat">
+      <strong>{{ credit.effective_violation_count }}</strong>
+      <span>有效违约次数 / 阈值 {{ credit.blacklist_threshold }}</span>
+    </div>
+  </div>
+  <div class="metric-grid">
+    <div class="metric"><span>黑名单状态</span><strong>{{ '生效中' if is_black else '未生效' }}</strong></div>
+    <div class="metric"><span>剩余解除时间</span><strong>{% if credit.remaining_minutes is not none %}{{ credit.remaining_minutes }} 分钟{% else %}—{% endif %}</strong></div>
+    <div class="metric"><span>预计解除时间</span><strong class="mono" style="font-size:13px">{{ credit.blacklist_until or '—' }}</strong></div>
+    <div class="metric"><span>黑名单阈值</span><strong>{{ credit.blacklist_threshold }} 次</strong></div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>解除条件</h2>
+  <ul class="condition-list">
+    {% for condition in credit.release_conditions %}<li>{{ condition }}</li>{% endfor %}
+  </ul>
+  {% if credit.active_blacklist_record %}
+  <div class="audit-note" style="margin-top:14px">
+    当前黑名单记录 #{{ credit.active_blacklist_record.id }}：{{ credit.active_blacklist_record.reason }}；
+    生效时间 {{ credit.active_blacklist_record.effective_at }}，失效时间 {{ credit.active_blacklist_record.expires_at }}；
+    来源 {{ credit.active_blacklist_record.source }}。
+  </div>
+  {% endif %}
+  <div class="row" style="margin-top:16px">
+    <a class="buttonlike" href="{{ url_for('violations_page') }}">查看违约记录并申诉</a>
+    <a class="buttonlike ghost" href="{{ url_for('seats_page') }}">查看座位</a>
+  </div>
+</section>
+{% endblock %}

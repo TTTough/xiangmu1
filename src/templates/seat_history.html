@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}座位历史 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>座位历史记录（FR-07 / AC-07-05）</h2>
+      <p class="note">展示该座位历次预约时段、使用者（脱敏）、签到签退时间、实际使用时长与违约情况。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_realtime_page') }}">返回实时座位</a>
+  </div>
+  <div class="history-head">
+    <h3 style="margin:0">座位 <span class="mono">{{ data.seat.code }}</span></h3>
+    <span class="pill s4">{{ data.seat.status }}</span>
+    <span class="note">{{ data.seat.room_name }} · {{ data.seat.zone_name }} · {{ data.seat.seat_type }}</span>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>历史预约与使用</h2>
+  {% if data.history %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>预约单</th><th>日期 / 时段</th><th>使用者（脱敏）</th><th>预约状态</th><th>签到</th><th>签退 / 时长</th><th>违约</th></tr></thead>
+      <tbody>
+      {% for h in data.history %}
+      <tr>
+        <td class="mono">{{ h.reservation_no }}</td>
+        <td><span class="mono">{{ h.date }}</span><br><span class="mono">{{ h.start_time }}—{{ h.end_time }}</span></td>
+        <td>{{ h.user_masked }}<br><span class="mono note">{{ h.student_no_masked }}</span></td>
+        <td><span class="pill {{ {'待生效':'s1','待签到':'s1','使用中':'s2','已完成':'s3','已取消':'s4','已违约':'s5'}.get(h.status, 's4') }}">{{ h.status }}</span></td>
+        <td>{% if h.checkin_at %}<span class="mono">{{ h.checkin_at }}</span><br><span class="note">{{ h.checkin_method }}</span>{% else %}—{% endif %}</td>
+        <td>{% if h.checkout_at %}<span class="mono">{{ h.checkout_at }}</span><br><span class="note">{{ h.actual_minutes }} 分钟</span>{% else %}—{% endif %}</td>
+        <td>
+          {% if h.violations %}
+            {% for v in h.violations %}
+            <span class="pill s5">{{ v.violation_type }} · {{ v.status }}</span><br>
+            {% endfor %}
+          {% else %}<span class="note">无</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">该座位暂无预约历史。</p>
+  {% endif %}
+</section>
+{% endblock %}

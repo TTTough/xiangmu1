@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}申诉复核 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>违约申诉复核（UC-09 / AC-05-03、AC-05-07）</h2>
+      <p class="note">仅显示「申诉中」记录。判定成立：记录撤销并回退有效违约计数；判定不成立：记录保持有效并继续累计。结论必填，操作写入审计日志。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_home') }}">返回管理工作台</a>
+  </div>
+  <div id="appeal-message"></div>
+  {% if appeals %}
+  <div class="item-list">
+    {% for v in appeals %}
+    <article class="work-item" data-appeal="{{ v['id'] }}">
+      <h3>{{ v['user_name'] }}（<span class="mono">{{ v['student_no'] }}</span>） · {{ v['violation_type'] }} · {{ v['seat_code'] }}</h3>
+      <div class="work-meta">
+        <span>记录编号：<span class="mono">{{ v['violation_no'] }}</span></span>
+        <span>发生时间：<span class="mono">{{ v['occurred_at'] }}</span></span>
+        <span>申诉时间：<span class="mono">{{ v['appeal_at'] or '—' }}</span></span>
+      </div>
+      <p><strong>判定依据：</strong>{{ v['basis'] }}</p>
+      <p><strong>申诉理由：</strong>{{ v['appeal_reason'] or '—' }}</p>
+      <div class="reason-box">
+        <label>复核结论（必填）</label>
+        <textarea class="appeal-conclusion" placeholder="填写核实情况与判定结论"></textarea>
+      </div>
+      <div class="work-actions">
+        <button class="act ok btn-judge" type="button" data-id="{{ v['id'] }}" data-decision="成立">判定成立（撤销并回退）</button>
+        <button class="act danger btn-judge" type="button" data-id="{{ v['id'] }}" data-decision="不成立">判定不成立</button>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="empty">当前没有待复核的申诉。</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function show(kind, text) {
+    document.getElementById("appeal-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.querySelectorAll(".btn-judge").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var card = button.closest(".work-item");
+      var conclusion = card.querySelector(".appeal-conclusion").value.trim();
+      if (!conclusion) { show("bad", "请填写复核结论后再提交。"); return; }
+      button.disabled = true;
+      fetch("/api/admin/violations/" + button.dataset.id + "/appeal", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Accept": "application/json"},
+        body: JSON.stringify({decision: button.dataset.decision, conclusion: conclusion})
+      }).then(function (response) {
+        return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+      }).then(function (result) {
+        if (!result.ok) {
+          button.disabled = false;
+          show("bad", "复核提交失败：" + result.data.error.message);
+          return;
+        }
+        var v = result.data.violation;
+        show("ok", "复核完成：" + v.violation_no + " 判定" + v.decision +
+          "，有效违约次数更新为 " + v.effective_violation_count + "。");
+        window.setTimeout(function () { window.location.reload(); }, 1000);
+      }).catch(function () {
+        button.disabled = false;
+        show("bad", "复核请求失败，请重试。");
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}
