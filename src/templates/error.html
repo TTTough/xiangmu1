@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ status_code }} · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel error-panel">
+  <p class="error-code">{{ status_code }}</p>
+  <h2>{{ title }}</h2>
+  <p class="note">{{ message }}</p>
+  <div class="row">
+    <a class="act buttonlike" href="{{ url_for('index') }}">返回首页</a>
+    <a class="act ghost buttonlike" href="{{ url_for('login') }}">去登录</a>
+  </div>
+</section>
+{% endblock %}

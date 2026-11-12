@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}学生工作台 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">R-01 学生工作台</p>
+    <h2>{{ current_user['name'] }}，欢迎回来</h2>
+    <p class="note">当前账号：<span class="mono">{{ current_user['student_no'] }}</span> · {{ role_labels.get(current_user['role'], current_user['role']) }}</p>
+  </div>
+  <div class="hero-counts">
+    <div class="hero-stat">
+      <strong>{{ active_count }}</strong>
+      <span>当前有效预约</span>
+    </div>
+    <div class="hero-stat">
+      <strong>{{ current_user['effective_violation_count'] }}</strong>
+      <span>有效违约次数</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>联系方式</h2>
+  <p class="note">只能修改本人联系方式；学号、姓名不可修改。</p>
+  <div class="form-grid">
+    <label class="full">联系方式<input id="my-contact" value="{{ current_user['contact'] or '' }}" placeholder="手机号或邮箱"></label>
+    <button class="act" id="btn-save-contact" type="button">保存联系方式</button>
+  </div>
+  <div id="contact-message"></div>
+</section>
+
+<div class="grid-3">
+  <a class="action-card" href="{{ url_for('seats_page') }}">
+    <span class="card-no">01</span>
+    <h3>查询空闲座位</h3>
+    <p>按楼栋、区域、日期、时段与座位类型筛选，查看每个座位的当前状态与可预约时段。</p>
+    <span class="card-link">进入查询 →</span>
+  </a>
+  <a class="action-card" href="{{ url_for('reservations_page') }}">
+    <span class="card-no">02</span>
+    <h3>我的预约</h3>
+    <p>查看待生效与待签到预约；开始时刻前可自行取消，取消不记违约。</p>
+    <span class="card-link">查看预约 →</span>
+  </a>
+  <a class="action-card" href="{{ url_for('usage_page') }}">
+    <span class="card-no">03</span>
+    <h3>签到 / 签退</h3>
+    <p>在签到窗口内扫码或输入座位号签到，使用完毕后签退并记录实际时长。</p>
+    <span class="card-link">进入签到 →</span>
+  </a>
+  <a class="action-card" href="{{ url_for('violations_page') }}">
+    <span class="card-no">04</span>
+    <h3>违约与申诉</h3>
+    <p>查看 V1/V2 违约记录；生效中且未过申诉期的记录可提交申诉。</p>
+    <span class="card-link">查看记录 →</span>
+  </a>
+  <a class="action-card" href="{{ url_for('credit_page') }}">
+    <span class="card-no">05</span>
+    <h3>信用状态</h3>
+    <p>查看黑名单状态、有效违约次数、剩余解除时间与解除条件。</p>
+    <span class="card-link">查看信用 →</span>
+  </a>
+  <div class="action-card muted">
+    <span class="card-no">06</span>
+    <h3>后续 Sprint</h3>
+    <p>实时座位管理、投诉、评价与数据分析将在后续版本开放。</p>
+    <span class="card-link">暂未开放</span>
+  </div>
+</div>
+
+<section class="panel">
+  <h2>最近通知</h2>
+  {% if notifications %}
+    <div class="notice-list">
+      {% for item in notifications %}
+      <article class="notice-item">
+        <div>
+          <strong>{{ item['title'] }}</strong>
+          <span class="pill s3">{{ item['notification_type'] }}</span>
+        </div>
+        <p>{{ item['content'] }}</p>
+        <p class="meta">{{ item['created_at'] }} · {{ item['delivery_result'] }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">暂无通知。完成第一笔预约后会收到预约成功通知。</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function msg(kind, text) {
+    document.getElementById("contact-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.getElementById("btn-save-contact").addEventListener("click", function () {
+    var button = this;
+    var contact = document.getElementById("my-contact").value.trim();
+    if (!contact) { msg("bad", "联系方式不能为空。"); return; }
+    button.disabled = true;
+    fetch("/api/me/contact", {
+      method: "PUT",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify({contact: contact})
+    }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (result) {
+        button.disabled = false;
+        if (!result.ok) { msg("bad", "保存失败：" + result.data.error.message); return; }
+        msg("ok", "联系方式已更新。");
+      }).catch(function () { button.disabled = false; msg("bad", "请求失败，请重试。"); });
+  });
+})();
+</script>
+{% endblock %}

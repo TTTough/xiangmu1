@@ -1,0 +1,21 @@
+/* Sprint 4 增量样式：记录查询、审计日志、系统管理工作台 */
+.records-filter { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; align-items: end; }
+.records-filter label { display: grid; gap: 5px; color: #4a576e; font-size: 12px; font-weight: 600; }
+.records-filter input, .records-filter select { width: 100%; }
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pagination .page-meta { color: #69758a; font-size: 12.5px; }
+.pagination .page-links { display: flex; gap: 8px; align-items: center; }
+.page-link { display: inline-block; padding: 7px 13px; border: 1px solid #b9c5d8; border-radius: 6px; background: #fff; color: var(--navy-2); text-decoration: none; font-weight: 600; }
+.page-link.disabled { color: #a3acbb; border-color: #e0e4eb; background: #f8f9fb; pointer-events: none; }
+.audit-json { margin: 0; padding: 9px 10px; max-height: 130px; overflow: auto; border: 1px solid #e0e5ed; border-radius: 6px; background: #f8fafc; color: #3d4c65; font: 11.5px/1.55 Consolas, monospace; white-space: pre-wrap; }
+.audit-cell { min-width: 180px; }
+.audit-action { font-weight: 700; color: #31415e; }
+.audit-target { color: #6b7689; font-size: 12px; }
+.system-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) {
+  .records-filter { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+  .system-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .records-filter { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}记录查询 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>预约记录查询（FR-06 / AC-06-02—04）</h2>
+      <p class="note">
+        {% if current_user['role'] == 'student' %}数据范围：仅本人预约。{% elif current_user['role'] == 'admin' %}数据范围：本人被授权自习室。{% else %}数据范围：全量只读。{% endif %}
+        翻页链接会保留当前筛选条件。
+      </p>
+    </div>
+  </div>
+
+  <form class="records-filter" method="get" action="{{ url_for('records_page') }}">
+    <label>开始日期<input name="date_from" type="date" value="{{ filters['date_from'] or '' }}"></label>
+    <label>结束日期<input name="date_to" type="date" value="{{ filters['date_to'] or '' }}"></label>
+    <label>状态
+      <select name="status">
+        <option value="">全部</option>
+        {% for status in ['待生效','待签到','使用中','已完成','已取消','已违约'] %}
+        <option value="{{ status }}" {% if filters['status'] == status %}selected{% endif %}>{{ status }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>自习室
+      <select name="room_id">
+        <option value="">全部</option>
+        {% for room in rooms %}
+        <option value="{{ room['id'] }}" {% if filters['room_id'] == room['id'] %}selected{% endif %}>{{ room['name'] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>每页
+      <select name="page_size">
+        {% for size in [5, 10, 20, 50] %}
+        <option value="{{ size }}" {% if filters['page_size'] == size %}selected{% endif %}>{{ size }} 条</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="act" type="submit">查询</button>
+    <a class="buttonlike ghost" href="{{ url_for('records_page') }}">清空</a>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>查询结果 <span class="note">共 {{ data.pagination.total }} 条，当前第 {{ data.pagination.page }} / {{ data.pagination.total_pages or 0 }} 页</span></h2>
+  {% if data['items'] %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>预约单</th><th>自习室 / 座位</th><th>日期 / 时段</th><th>学生（脱敏）</th><th>来源</th><th>状态</th><th>创建时间</th></tr></thead>
+      <tbody>
+      {% for item in data['items'] %}
+      <tr>
+        <td class="mono">{{ item.reservation_no }}</td>
+        <td>{{ item.room_name }} / <strong>{{ item.seat_code }}</strong></td>
+        <td><span class="mono">{{ item.reservation_date }}</span><br><span class="mono">{{ item.start_time }}—{{ item.end_time }}</span></td>
+        <td>{{ item.student_name_masked }}<br><span class="mono note">{{ item.student_no_masked }}</span></td>
+        <td>{{ item.source }}{% if item.admin_reason %}<br><span class="note">原因：{{ item.admin_reason }}</span>{% endif %}</td>
+        <td><span class="pill {{ {'待生效':'s1','待签到':'s1','使用中':'s2','已完成':'s3','已取消':'s4','已违约':'s5'}.get(item.status, 's4') }}">{{ item.status }}</span></td>
+        <td class="mono">{{ item.created_at }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">当前筛选条件下没有预约记录。</p>
+  {% endif %}
+
+  <div class="pagination">
+    <span class="page-meta">每页 {{ data.pagination.page_size }} 条 · 第 {{ data.pagination.page }} 页</span>
+    <div class="page-links">
+      <a class="page-link {{ 'disabled' if not prev_url else '' }}" href="{{ prev_url or '#' }}">上一页</a>
+      <a class="page-link {{ 'disabled' if not next_url else '' }}" href="{{ next_url or '#' }}">下一页</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}智慧自习室预约与管理系统{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='sprint2.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='sprint3.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='sprint4.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='sprint5.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='sprint6.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='sprint7.css') }}">
+</head>
+<body>
+<header>
+  <div>
+    <h1>智慧自习室预约与管理系统</h1>
+    <span class="tag">v1.0 · 最终版</span>
+  </div>
+  {% if current_user %}
+  <div class="who">
+    <span>{{ current_user['name'] }}</span>
+    <span class="role">{{ role_labels.get(current_user['role'], current_user['role']) }}</span>
+    <span class="status-pill">{{ current_user['account_status'] }}</span>
+    <form method="post" action="{{ url_for('logout') }}">
+      <button class="linklike" type="submit">退出</button>
+    </form>
+  </div>
+  {% endif %}
+</header>
+
+{% if current_user %}
+<nav>
+  {% if current_user['role'] == 'student' %}
+    <a class="{{ 'on' if request.endpoint == 'student_home' else '' }}" href="{{ url_for('student_home') }}">学生工作台</a>
+    <a class="{{ 'on' if request.endpoint == 'seats_page' else '' }}" href="{{ url_for('seats_page') }}">查询与预约</a>
+    <a class="{{ 'on' if request.endpoint == 'reservations_page' else '' }}" href="{{ url_for('reservations_page') }}">我的预约</a>
+    <a class="{{ 'on' if request.endpoint == 'usage_page' else '' }}" href="{{ url_for('usage_page') }}">签到 / 签退</a>
+    <a class="{{ 'on' if request.endpoint == 'violations_page' else '' }}" href="{{ url_for('violations_page') }}">违约与申诉</a>
+    <a class="{{ 'on' if request.endpoint == 'credit_page' else '' }}" href="{{ url_for('credit_page') }}">信用状态</a>
+    <a class="{{ 'on' if request.endpoint == 'evaluations_page' else '' }}" href="{{ url_for('evaluations_page') }}">评价</a>
+    <a class="{{ 'on' if request.endpoint == 'complaints_page' else '' }}" href="{{ url_for('complaints_page') }}">投诉与反馈</a>
+    <a class="{{ 'on' if request.endpoint == 'records_page' else '' }}" href="{{ url_for('records_page') }}">记录查询</a>
+    <a class="{{ 'on' if request.endpoint == 'notifications_page' else '' }}" href="{{ url_for('notifications_page') }}">通知</a>
+  {% elif current_user['role'] == 'admin' %}
+    <a class="{{ 'on' if request.endpoint == 'admin_home' else '' }}" href="{{ url_for('admin_home') }}">管理工作台</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_resources_page' else '' }}" href="{{ url_for('admin_resources_page') }}">资源维护</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_proxy_reservation_page' else '' }}" href="{{ url_for('admin_proxy_reservation_page') }}">代创建预约</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_realtime_page' else '' }}" href="{{ url_for('admin_realtime_page') }}">实时座位</a>
+    <a class="{{ 'on' if request.endpoint == 'seats_page' else '' }}" href="{{ url_for('seats_page') }}">座位查询</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_appeals_page' else '' }}" href="{{ url_for('admin_appeals_page') }}">申诉复核</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_blacklists_page' else '' }}" href="{{ url_for('admin_blacklists_page') }}">黑名单</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_maintenance_page' else '' }}" href="{{ url_for('admin_maintenance_page') }}">维护扫描</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_evaluations_page' else '' }}" href="{{ url_for('admin_evaluations_page') }}">评价管理</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_complaints_page' else '' }}" href="{{ url_for('admin_complaints_page') }}">投诉处理</a>
+    <a class="{{ 'on' if request.endpoint == 'records_page' else '' }}" href="{{ url_for('records_page') }}">记录查询</a>
+    <a class="{{ 'on' if request.endpoint == 'analytics_page' else '' }}" href="{{ url_for('analytics_page') }}">数据分析</a>
+    <a class="{{ 'on' if request.endpoint == 'notifications_page' else '' }}" href="{{ url_for('notifications_page') }}">通知</a>
+  {% elif current_user['role'] == 'sysadmin' %}
+    <a class="{{ 'on' if request.endpoint == 'sysadmin_home' else '' }}" href="{{ url_for('sysadmin_home') }}">系统管理工作台</a>
+    <a class="{{ 'on' if request.endpoint == 'sysadmin_users_page' else '' }}" href="{{ url_for('sysadmin_users_page') }}">用户查询</a>
+    <a class="{{ 'on' if request.endpoint == 'sysadmin_assignments_page' else '' }}" href="{{ url_for('sysadmin_assignments_page') }}">授权维护</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_resources_page' else '' }}" href="{{ url_for('admin_resources_page') }}">资源维护</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_realtime_page' else '' }}" href="{{ url_for('admin_realtime_page') }}">实时座位</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_appeals_page' else '' }}" href="{{ url_for('admin_appeals_page') }}">申诉复核</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_blacklists_page' else '' }}" href="{{ url_for('admin_blacklists_page') }}">黑名单</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_evaluations_page' else '' }}" href="{{ url_for('admin_evaluations_page') }}">评价管理</a>
+    <a class="{{ 'on' if request.endpoint == 'admin_complaints_page' else '' }}" href="{{ url_for('admin_complaints_page') }}">投诉处理</a>
+    <a class="{{ 'on' if request.endpoint == 'records_page' else '' }}" href="{{ url_for('records_page') }}">记录查询</a>
+    <a class="{{ 'on' if request.endpoint == 'analytics_page' else '' }}" href="{{ url_for('analytics_page') }}">数据分析</a>
+    <a class="{{ 'on' if request.endpoint == 'sysadmin_audit_page' else '' }}" href="{{ url_for('sysadmin_audit_page') }}">审计日志</a>
+    <a class="{{ 'on' if request.endpoint == 'sysadmin_params_page' else '' }}" href="{{ url_for('sysadmin_params_page') }}">参数配置</a>
+  {% elif current_user['role'] == 'logistics' %}
+    <a class="{{ 'on' if request.endpoint == 'analytics_page' else '' }}" href="{{ url_for('analytics_page') }}">数据分析</a>
+    <a class="{{ 'on' if request.endpoint == 'records_page' else '' }}" href="{{ url_for('records_page') }}">记录查询</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="msg {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer>智慧自习室预约与管理系统 · 需求依据 SRS V1.7 · 最终版 v1.0</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

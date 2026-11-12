@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}我的预约 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>我的预约（FR-06 / AC-04-01、AC-04-02）</h2>
+  <p class="note">仅展示本人预约。开始时刻前可取消，取消后座位释放且不生成违约记录；开始后取消会被服务端拒绝。</p>
+  <div id="page-message"></div>
+  {% if reservations %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>预约单编号</th><th>自习室 / 座位</th><th>日期</th><th>时段</th><th>来源</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+      </thead>
+      <tbody>
+      {% for r in reservations %}
+        <tr>
+          <td class="mono">{{ r.reservation_no }}</td>
+          <td>{{ r.room_name }} / <strong>{{ r.seat_code }}</strong></td>
+          <td class="mono">{{ r.reservation_date }}</td>
+          <td class="mono">{{ r.start_time }}—{{ r.end_time }}</td>
+          <td>{{ r.source }}{% if r.admin_reason %}<br><span class="note">原因：{{ r.admin_reason }}</span>{% endif %}</td>
+          <td><span class="pill {{ {'待生效':'s1','待签到':'s1','使用中':'s2','已完成':'s3','已取消':'s4','已违约':'s5'}.get(r.status, 's4') }}">{{ r.status }}</span></td>
+          <td class="mono">{{ r.created_at }}</td>
+          <td>
+            {% if r.status == '待生效' and r.modify_count == 0 %}
+            <a class="buttonlike ghost" href="{{ url_for('reservation_modify_page', reservation_id=r.id) }}">修改</a>
+            {% elif r.status == '待生效' and r.modify_count > 0 %}
+            <span class="note">已修改</span>
+            {% endif %}
+            {% if r.status in ('待生效', '待签到') %}
+            <button class="act ghost btn-cancel" type="button" data-id="{{ r.id }}" data-no="{{ r.reservation_no }}">取消预约</button>
+            {% elif r.status != '待生效' %}
+            <span class="note">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">当前没有预约记录。<a href="{{ url_for('seats_page') }}">去查询空闲座位</a></p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function show(kind, text) {
+    document.getElementById("page-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.querySelectorAll(".btn-cancel").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!window.confirm("确认取消预约 " + button.dataset.no + "？取消后不记违约。")) { return; }
+      button.disabled = true;
+      fetch("/api/reservations/" + button.dataset.id + "/cancel", {
+        method: "POST",
+        headers: {"Accept": "application/json"}
+      }).then(function (response) {
+        return response.json().then(function (body) { return {ok: response.ok, body: body}; });
+      }).then(function (result) {
+        if (!result.ok) {
+          button.disabled = false;
+          show("bad", "取消失败：" + result.body.error.message);
+          return;
+        }
+        show("ok", "取消成功：" + result.body.reservation.reservation_no +
+          " 已变为「已取消」，座位「" + result.body.reservation.seat_code + "」已释放；未生成违约记录。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        show("bad", "取消请求失败，请重试。");
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}黑名单管理 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>黑名单管理（FR-10 / AC-10-04）</h2>
+      <p class="note">可直接加入黑名单或延长期限，均须填写原因与期限并写入审计日志；期限届满由维护扫描自动恢复，解除后有效违约计数按 Q-06 当前口径不清零。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_home') }}">返回管理工作台</a>
+  </div>
+  <div id="blacklist-message"></div>
+  <div class="form-grid" id="add-blacklist-form" style="margin-bottom:14px">
+    <label>学生学号<input id="bl-student-no" placeholder="如 246003385"></label>
+    <label>期限（天）<input id="bl-days" type="number" min="1" max="365" value="7"></label>
+    <label class="full">加入原因<input id="bl-reason" placeholder="填写违规事实与原因"></label>
+    <button class="act danger" id="btn-add-blacklist" type="button">直接加入黑名单</button>
+  </div>
+  {% if blacklists %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>记录</th><th>学生</th><th>原因</th><th>来源</th><th>生效</th><th>失效</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for b in blacklists %}
+      <tr>
+        <td class="mono">#{{ b['id'] }}</td>
+        <td>{{ b['user_name'] }}<br><span class="mono note">{{ b['student_no'] }}</span><br><span class="note">违约 {{ b['effective_violation_count'] }} 次 / {{ b['account_status'] }}</span></td>
+        <td>{{ b['reason'] }}{% if b['release_reason'] %}<br><span class="note">解除：{{ b['release_reason'] }}</span>{% endif %}</td>
+        <td>{{ b['source'] }}</td>
+        <td class="mono">{{ b['effective_at'] }}</td>
+        <td class="mono">{{ b['expires_at'] }}</td>
+        <td><span class="pill {{ 's5' if b['status'] == '生效中' else ('s3' if b['status'] == '已解除' else 's4') }}">{{ b['status'] }}</span></td>
+        <td>
+          {% if b['status'] == '生效中' %}
+          <div class="reason-box">
+            <input class="release-reason" placeholder="提前解除原因（必填）">
+            <button class="act danger btn-release" type="button" data-id="{{ b['id'] }}">提前解除</button>
+          </div>
+          <div class="reason-box" style="margin-top:6px">
+            <input class="extend-days" type="number" min="1" max="365" value="7" placeholder="延长天数">
+            <input class="extend-reason" placeholder="延期原因（必填）">
+            <button class="act ghost btn-extend" type="button" data-id="{{ b['id'] }}">延期</button>
+          </div>
+          {% else %}<span class="note">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">当前没有黑名单记录。</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function show(kind, text) {
+    document.getElementById("blacklist-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.getElementById("btn-add-blacklist").addEventListener("click", function () {
+    var body = {
+      student_no: document.getElementById("bl-student-no").value.trim(),
+      days: document.getElementById("bl-days").value.trim(),
+      reason: document.getElementById("bl-reason").value.trim()
+    };
+    if (!body.student_no || !body.reason) { show("bad", "学号与原因必填。"); return; }
+    fetch("/api/admin/blacklists", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+    }).then(function (result) {
+      if (!result.ok) { show("bad", "加入失败：" + result.data.error.message); return; }
+      show("ok", "已加入黑名单，期限至 " + result.data.blacklist.expires_at + "。");
+      window.setTimeout(function () { window.location.reload(); }, 900);
+    }).catch(function () { show("bad", "请求失败，请重试。"); });
+  });
+  document.querySelectorAll(".btn-extend").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var row = button.closest("tr");
+      var days = row.querySelector(".extend-days").value.trim();
+      var reason = row.querySelector(".extend-reason").value.trim();
+      if (!reason || !days) { show("bad", "延期原因与天数必填。"); return; }
+      button.disabled = true;
+      fetch("/api/admin/blacklists/" + button.dataset.id + "/extend", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Accept": "application/json"},
+        body: JSON.stringify({days: days, reason: reason})
+      }).then(function (response) {
+        return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+      }).then(function (result) {
+        if (!result.ok) { button.disabled = false; show("bad", "延期失败：" + result.data.error.message); return; }
+        show("ok", "已延期至 " + result.data.blacklist.expires_at + "。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () { button.disabled = false; show("bad", "请求失败，请重试。"); });
+    });
+  });
+  document.querySelectorAll(".btn-release").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var row = button.closest("tr");
+      var reason = row.querySelector(".release-reason").value.trim();
+      if (!reason) { show("bad", "提前解除黑名单必须填写原因。"); return; }
+      if (!window.confirm("确认提前解除该黑名单记录？")) { return; }
+      button.disabled = true;
+      fetch("/api/admin/blacklists/" + button.dataset.id + "/release", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Accept": "application/json"},
+        body: JSON.stringify({reason: reason})
+      }).then(function (response) {
+        return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+      }).then(function (result) {
+        if (!result.ok) {
+          button.disabled = false;
+          show("bad", "解除失败：" + result.data.error.message);
+          return;
+        }
+        show("ok", "已提前解除：" + result.data.blacklist.student_no + " 的账号状态变为 " + result.data.blacklist.account_status + "。");
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      }).catch(function () {
+        button.disabled = false;
+        show("bad", "解除请求失败，请重试。");
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

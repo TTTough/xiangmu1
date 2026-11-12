@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}通知中心 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>通知中心（FR-12 / AC-12-01—03）</h2>
+      <p class="note">通知按分类展示，可标记已读；通知不可删除。每条通知保留分类、发送时间与送达结果。</p>
+    </div>
+    <span class="note" id="notification-updated">尚未加载</span>
+  </div>
+  <div class="records-filter">
+    <label>分类
+      <select id="n-category"><option value="">全部分类</option></select>
+    </label>
+    <label>阅读状态
+      <select id="n-read">
+        <option value="">全部</option>
+        <option value="unread">未读</option>
+        <option value="read">已读</option>
+      </select>
+    </label>
+    <button class="act" id="btn-filter-notifications" type="button">筛选</button>
+    <a class="buttonlike ghost" href="{{ url_for('notifications_page') }}">重置</a>
+  </div>
+  <div id="notification-message"></div>
+</section>
+
+<section class="panel">
+  <h2>我的通知</h2>
+  <div id="notification-list" class="notice-list"></div>
+  <div class="pagination">
+    <span class="page-meta" id="notification-page-meta"></span>
+    <div class="page-links">
+      <button class="page-link" id="n-prev" type="button">上一页</button>
+      <button class="page-link" id="n-next" type="button">下一页</button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  var page = 1;
+  var pageSize = 20;
+  var totalPages = 0;
+  var categoriesLoaded = false;
+  function el(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function msg(kind, text) {
+    el("notification-message").innerHTML = '<div class="msg ' + kind + '">' + esc(text) + '</div>';
+  }
+  function loadCategories(categories) {
+    if (categoriesLoaded) { return; }
+    categories.forEach(function (category) {
+      var option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      el("n-category").appendChild(option);
+    });
+    categoriesLoaded = true;
+  }
+  function render(data) {
+    loadCategories(data.categories);
+    totalPages = data.pagination.total_pages;
+    el("notification-page-meta").textContent = "共 " + data.pagination.total + " 条 · 第 " +
+      data.pagination.page + " / " + (data.pagination.total_pages || 0) + " 页";
+    el("n-prev").classList.toggle("disabled", !data.pagination.has_prev);
+    el("n-next").classList.toggle("disabled", !data.pagination.has_next);
+    el("notification-updated").textContent = "最近加载：" + new Date().toLocaleTimeString();
+    if (!data.notifications.length) {
+      el("notification-list").innerHTML = '<p class="empty">暂无符合筛选条件的通知。</p>';
+      return;
+    }
+    el("notification-list").innerHTML = data.notifications.map(function (item) {
+      var pill = item.is_read ? '<span class="pill s4">已读</span>' : '<span class="pill s1">未读</span>';
+      var readButton = item.is_read ? "" :
+        '<button class="act ghost btn-read" type="button" data-id="' + item.id + '">标记已读</button>';
+      return '<article class="notice-item">' +
+        '<div><strong>' + esc(item.title) + '</strong><span class="pill s3">' + esc(item.notification_type) + '</span>' + pill + '</div>' +
+        '<p>' + esc(item.content) + '</p>' +
+        '<p class="meta">发送：' + esc(item.created_at) + ' · 送达：' + esc(item.delivery_result) +
+        (item.read_at ? ' · 已读：' + esc(item.read_at) : '') + '</p>' +
+        '<div class="notice-actions">' + readButton + '</div></article>';
+    }).join("");
+    document.querySelectorAll(".btn-read").forEach(function (button) {
+      button.addEventListener("click", function () {
+        fetch("/api/notifications/" + button.dataset.id + "/read", {
+          method: "POST", headers: {"Accept": "application/json"}
+        }).then(function (response) {
+          return response.json().then(function (body) { return {ok: response.ok, body: body}; });
+        }).then(function (result) {
+          if (!result.ok) { msg("bad", "标记已读失败：" + result.body.error.message); return; }
+          load();
+        });
+      });
+    });
+  }
+  function load() {
+    var params = new URLSearchParams();
+    params.set("page", page);
+    params.set("page_size", pageSize);
+    if (el("n-category").value) { params.set("category", el("n-category").value); }
+    if (el("n-read").value) { params.set("read_status", el("n-read").value); }
+    fetch("/api/notifications?" + params.toString(), {headers: {"Accept": "application/json"}})
+      .then(function (response) {
+        return response.json().then(function (body) { return {ok: response.ok, body: body}; });
+      }).then(function (result) {
+        if (!result.ok) { msg("bad", result.body.error.message); return; }
+        render(result.body);
+      }).catch(function () { msg("bad", "通知加载失败，请重试。"); });
+  }
+  el("btn-filter-notifications").addEventListener("click", function () { page = 1; load(); });
+  el("n-prev").addEventListener("click", function () { if (page > 1) { page -= 1; load(); } });
+  el("n-next").addEventListener("click", function () { if (page < totalPages) { page += 1; load(); } });
+  load();
+})();
+</script>
+{% endblock %}

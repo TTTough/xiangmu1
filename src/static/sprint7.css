@@ -1,0 +1,5 @@
+/* S11 增量样式：规则参数配置 */
+.param-edit { display: flex; gap: 7px; align-items: center; min-width: 155px; }
+.param-edit input { width: 90px; padding: 6px 8px; }
+.param-edit .act { padding: 7px 11px; }
+.param-value { font-family: Consolas, "Courier New", monospace; }

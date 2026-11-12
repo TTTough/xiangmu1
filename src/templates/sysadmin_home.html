@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}系统管理工作台 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="hero admin-hero">
+  <div>
+    <p class="eyebrow">R-03 系统管理员工作台</p>
+    <h2>{{ current_user['name'] }}，系统治理</h2>
+    <p class="note">本版提供审计与参数配置，以及权限矩阵允许的资源维护、实时座位、投诉、黑名单、评价与统计入口；手动违约与提前释放仅限自习室管理员（权限矩阵第 18、29 行）。</p>
+  </div>
+  <div class="hero-counts">
+    <div class="hero-stat"><strong>{{ audit_count }}</strong><span>审计日志条数</span></div>
+  </div>
+</section>
+
+<div class="system-cards">
+  <a class="action-card" href="{{ url_for('sysadmin_audit_page') }}">
+    <span class="card-no">01</span>
+    <h3>审计日志查询</h3>
+    <p>按操作人、操作类型、目标对象与时间区间筛选，支持分页并展示变更前后取值。</p>
+    <span class="card-link">进入审计 →</span>
+  </a>
+  <a class="action-card" href="{{ url_for('sysadmin_params_page') }}">
+    <span class="card-no">02</span>
+    <h3>参数配置（已开放）</h3>
+    <p>编辑规则参数并校验取值范围；参数变更写入审计日志，历史业务记录不受影响。</p>
+    <span class="card-link">进入配置 →</span>
+  </a>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}评价管理 · 智慧自习室{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-lead">
+    <div>
+      <h2>评价管理（FR-08 / AC-08-03）</h2>
+      <p class="note">仅显示当前管理员授权范围内的评价。隐藏评价必须填写理由，隐藏后不计入平均分与评价条数；操作写入审计日志。</p>
+    </div>
+    <a class="buttonlike ghost" href="{{ url_for('admin_home') }}">返回管理工作台</a>
+  </div>
+  <div id="eval-admin-message"></div>
+  {% if evaluations %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>对象</th><th>学生（脱敏）</th><th>评分</th><th>评论</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for e in evaluations %}
+      <tr>
+        <td>{{ e.target_type }} · {{ e.target_label }}</td>
+        <td>{{ e.user_name_masked }}<br><span class="mono note">{{ e.student_no_masked }}</span></td>
+        <td><strong>{{ e.rating }}</strong> / 5</td>
+        <td>{{ e.comment or '—' }}</td>
+        <td class="mono">{{ e.submitted_at }}</td>
+        <td>
+          {% if e.hidden %}
+          <span class="pill s5">已隐藏</span><br><span class="note">{{ e.hidden_reason }}</span>
+          {% else %}<span class="pill s3">展示中</span>{% endif %}
+        </td>
+        <td>
+          {% if not e.hidden %}
+          <div class="reason-box">
+            <input class="hide-reason" placeholder="隐藏理由（必填）">
+            <button class="act danger btn-hide-eval" type="button" data-id="{{ e.id }}">隐藏评价</button>
+          </div>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">授权范围内暂无评价。</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  "use strict";
+  function msg(kind, text) {
+    document.getElementById("eval-admin-message").innerHTML =
+      '<div class="msg ' + kind + '">' + String(text).replace(/</g, "&lt;") + '</div>';
+  }
+  document.querySelectorAll(".btn-hide-eval").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var row = button.closest("tr");
+      var reason = row.querySelector(".hide-reason").value.trim();
+      if (!reason) { msg("bad", "隐藏评价必须填写理由。"); return; }
+      button.disabled = true;
+      fetch("/api/admin/evaluations/" + button.dataset.id + "/hide", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Accept": "application/json"},
+        body: JSON.stringify({reason: reason})
+      }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+        .then(function (result) {
+          if (!result.ok) {
+            button.disabled = false;
+            msg("bad", "隐藏失败：" + result.data.error.message);
+            return;
+          }
+          msg("ok", "评价已隐藏，不再计入平均分与评价条数。");
+          window.setTimeout(function () { window.location.reload(); }, 900);
+        }).catch(function () {
+          button.disabled = false;
+          msg("bad", "请求失败，请重试。");
+        });
+    });
+  });
+})();
+</script>
+{% endblock %}

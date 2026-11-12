@@ -1,0 +1,21 @@
+/* Sprint 6 增量样式：数据分析与通知中心 */
+.analytics-stats { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 10px; }
+.stat-card { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(160deg, #fff, #f7f9fd); }
+.stat-card span { display: block; color: #6b7689; font-size: 12px; }
+.stat-card strong { display: block; margin-top: 7px; font-size: 26px; color: var(--navy); }
+.analytics-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-box { min-height: 250px; }
+.chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart-wide { min-height: 290px; }
+.chart-legend { display: flex; gap: 16px; font-size: 12px; color: #5d687d; margin-bottom: 6px; }
+.chart-legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: 3px; border-radius: 2px; }
+.legend-reservation::before { background: #2c6fd1; }
+.legend-violation::before { background: #c25b4d; }
+.notice-actions { margin-top: 8px; }
+@media (max-width: 1050px) {
+  .analytics-stats { grid-template-columns: repeat(3, minmax(110px, 1fr)); }
+  .analytics-charts { grid-template-columns: 1fr; }
+}
+@media (max-width: 580px) {
+  .analytics-stats { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+}
