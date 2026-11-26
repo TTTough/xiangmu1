@@ -60,7 +60,7 @@ def test_sysadmin_permissions_match_matrix_and_forbidden_actions(
     room_id = created.get_json()["room"]["id"]
     resources = sysadmin.get("/api/admin/resources").get_json()["rooms"]
     assert any(room["id"] == room_id for room in resources)
-    assert any(room["code"] == "R-LIB-3F" for room in resources)
+    assert any(room["code"] == "R-N1-101" for room in resources)
 
     # 权限矩阵第 16 行：停用 / 恢复
     seat_b = get_seat_id(db_query, "A-02")

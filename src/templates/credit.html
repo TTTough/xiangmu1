@@ -5,7 +5,7 @@
 <section class="credit-card {{ 'blacklisted' if is_black else 'normal' }}">
   <div class="credit-head">
     <div>
-      <p class="eyebrow" style="color:#d9e5fa">R-01 学生信用状态</p>
+      <p class="eyebrow" style="color:#d9e5fa">信用状态</p>
       <p class="credit-status">{{ credit.account_status }}</p>
       <p class="note">{{ '当前处于黑名单期间，禁止发起新预约；已有预约仍可签到签退。' if is_black else '当前可正常发起预约。' }}</p>
     </div>

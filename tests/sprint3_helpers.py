@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-def get_room_id(db_query, code="R-LIB-3F"):
+def get_room_id(db_query, code="R-N1-101"):
     return db_query("SELECT id FROM rooms WHERE code=?", (code,))[0]["id"]
 
 

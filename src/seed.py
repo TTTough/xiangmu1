@@ -189,13 +189,13 @@ def seed_database(conn: sqlite3.Connection | None = None, now: datetime | None =
                 INSERT INTO rooms
                     (code, name, building, floor, location, open_from, open_to,
                      status, note, created_at)
-                VALUES ('R-LIB-3F', '图书馆三层自习室', '图书馆', '3 层',
-                        '图书馆三层东侧', '08:00', '22:00', '开放',
-                        '演示数据；开放时间来自原型，非 SRS 业务规则', ?)
+                VALUES ('R-N1-101', '北区一号楼101教室', '北区一号楼', '1 层',
+                        '101 教室', '08:00', '22:00', '开放',
+                        '开放时间按实际使用时间设定', ?)
                 """,
                 (created_at,),
             )
-            room_id = conn.execute("SELECT id FROM rooms WHERE code='R-LIB-3F'").fetchone()["id"]
+            room_id = conn.execute("SELECT id FROM rooms WHERE code='R-N1-101'").fetchone()["id"]
             admin_id = conn.execute(
                 "SELECT id FROM users WHERE student_no=?", (ADMIN_ACCOUNT["student_no"],)
             ).fetchone()["id"]
