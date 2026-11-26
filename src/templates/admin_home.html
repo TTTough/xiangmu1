@@ -5,7 +5,7 @@
   <div>
     <p class="eyebrow">R-02 自习室管理员工作台</p>
     <h2>{{ current_user['name'] }}，管理入口</h2>
-    <p class="note">本版新增资源维护、实时座位视图、V3 手动违约与座位历史；其余管理能力按 Sprint 分批开放。</p>
+    <p class="note">管理资源维护、实时座位、手动违约登记与座位历史，以及投诉、黑名单、评价、申诉复核与维护扫描。</p>
   </div>
   <div class="hero-counts">
     <div class="hero-stat"><strong>{{ seat_count }}</strong><span>已登记座位</span></div>
@@ -78,7 +78,7 @@
 </div>
 
 <section class="panel">
-  <h2>服务端权限边界（AC-01-03）</h2>
+  <h2>服务端权限边界</h2>
   <p class="note">学生直接请求管理端点时，服务端返回 403 并保持数据不变。前端隐藏菜单不作为权限依据（BR-21、NFR-07）。</p>
 </section>
 {% endblock %}
