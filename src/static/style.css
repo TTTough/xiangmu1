@@ -99,7 +99,7 @@ button.act:disabled { background: #b9c1cf; cursor: not-allowed; }
 .msg { padding: 11px 14px; border-radius: 8px; margin: 10px 0 14px; border: 1px solid; }
 .msg.ok, .msg.success, .msg.info { background: #eef5ff; border-color: #b4ccef; color: #24446f; }
 .msg.error, .msg.bad { background: var(--red-bg); border-color: #e7aaa3; color: #7e261d; }
-.login-wrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 18px; margin-top: 22px; }
+.login-wrap { display: grid; grid-template-columns: minmax(0, 760px); justify-content: center; gap: 18px; margin-top: 22px; }
 .login-panel { padding: 28px; }
 .login-panel form { margin: 18px 0 24px; }
 .login-panel input { width: 100%; }

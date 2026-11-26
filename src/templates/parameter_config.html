@@ -4,7 +4,7 @@
 <section class="panel">
   <div class="section-lead">
     <div>
-      <h2>规则参数配置（FR-13 / AC-13-01—04）</h2>
+      <h2>规则参数配置</h2>
       <p class="note">参数保存后即时生效；输入必须落在声明范围内。每次变更记录操作人、时间与前后取值并写入审计日志。历史业务记录不因参数变更而回溯修改。</p>
     </div>
     <a class="buttonlike ghost" href="{{ url_for('sysadmin_audit_page') }}">查看审计日志</a>
@@ -37,7 +37,7 @@
       </tbody>
     </table>
   </div>
-  <p class="note" style="margin-top:12px">注：附录 A 未统一给出数值范围，本版范围为可校验的实现默认区间（见 docs/open-questions.md OQ-33）。「未接入」参数不影响当前业务判定；AC-13-01 的即时生效只对「已接入」参数宣称（Q-32）。</p>
+  <p class="note" style="margin-top:12px">注：数值范围为可校验的实现默认区间。「未接入」参数不影响当前业务判定；保存后即时生效只对「已接入」参数适用。</p>
 </section>
 {% endblock %}
 

@@ -4,7 +4,7 @@
 <section class="panel">
   <div class="section-lead">
     <div>
-      <h2>实时座位视图（FR-07 / AC-07-01）</h2>
+      <h2>实时座位视图</h2>
       <p class="note">按区域展示座位矩阵，颜色区分空闲/已预约/使用中/停用；当前使用者姓名与学号脱敏显示。{% if current_user['role'] == 'admin' %}仅显示本人被授权的自习室。{% else %}系统管理员可查看全部自习室。{% endif %}</p>
     </div>
     <a class="buttonlike ghost" href="{{ url_for('admin_resources_page') }}">资源维护 →</a>

@@ -4,7 +4,7 @@
 <section class="panel">
   <div class="section-lead">
     <div>
-      <h2>预约记录查询（FR-06 / AC-06-02—04）</h2>
+      <h2>预约记录查询</h2>
       <p class="note">
         {% if current_user['role'] == 'student' %}数据范围：仅本人预约。{% elif current_user['role'] == 'admin' %}数据范围：本人被授权自习室。{% else %}数据范围：全量只读。{% endif %}
         翻页链接会保留当前筛选条件。

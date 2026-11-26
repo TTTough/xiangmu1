@@ -2,7 +2,7 @@
 {% block title %}查询与预约 · 智慧自习室{% endblock %}
 {% block content %}
 <section class="panel">
-  <h2>查询空闲座位（UC-03 / FR-06 / AC-06-01）</h2>
+  <h2>查询空闲座位</h2>
   <div class="filter-grid">
     <label>楼栋<input id="f-building" placeholder="如：图书馆"></label>
     <label>自习室
@@ -41,7 +41,7 @@
     <span><i class="reserved"></i>已预约</span>
     <span><i class="occupied"></i>使用中</span>
     <span><i class="disabled"></i>停用</span>
-    <span class="note">使用者姓名不在本 Sprint 的查询结果中展示</span>
+    <span class="note">使用者姓名不在查询结果中展示</span>
   </div>
   <div id="query-message" class="msg info">正在加载座位数据……</div>
   <div id="seat-grid" class="seatgrid"></div>
@@ -60,7 +60,7 @@
 {% else %}
 <section class="panel">
   <h2>座位查询说明</h2>
-  <p class="note">管理员本 Sprint 仅提供只读查询；实时座位管理与手动违约登记在后续 Sprint 开放。</p>
+  <p class="note">管理员在此页仅作只读查询；实时座位管理与手动违约登记在「实时座位」页操作。</p>
 </section>
 {% endif %}
 {% endblock %}
