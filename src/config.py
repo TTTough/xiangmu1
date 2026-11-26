@@ -29,10 +29,10 @@ class Config:
 
 
 ROLE_LABELS = {
-    "student": "学生（R-01）",
-    "admin": "自习室管理员（R-02）",
-    "sysadmin": "系统管理员（R-03）",
-    "logistics": "后勤/场馆管理部门（R-04）",
+    "student": "学生",
+    "admin": "自习室管理员",
+    "sysadmin": "系统管理员",
+    "logistics": "后勤/场馆管理部门",
 }
 
 

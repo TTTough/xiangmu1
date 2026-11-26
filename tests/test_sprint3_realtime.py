@@ -30,7 +30,7 @@ def test_ac_07_01_realtime_view_masks_occupant_and_shows_slot(
     response = client.get(f"/api/admin/realtime?room_id={get_room_id(db_query)}")
     assert response.status_code == 200
     data = response.get_json()
-    assert data["room"]["name"] == "图书馆三层自习室"
+    assert data["room"]["name"] == "北区一号楼101教室"
     all_seats = [seat for zone in data["zones"] for seat in zone["seats"]]
     seat = next(item for item in all_seats if item["code"] == "A-01")
     assert seat["status"] == "使用中"

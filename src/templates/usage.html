@@ -4,8 +4,8 @@
 <section class="panel">
   <div class="section-lead">
     <div>
-      <h2>签到 / 签退（FR-04）</h2>
-      <p class="note">服务端当前时间：<span class="mono">{{ now_text }}</span>。签到窗口由 P-05/P-06 参数计算；窗口外或座位号不一致时拒绝且状态保持。</p>
+      <h2>签到 / 签退</h2>
+      <p class="note">服务端当前时间：<span class="mono">{{ now_text }}</span>。签到窗口按系统配置计算；窗口外或座位号不一致时拒绝且状态保持。</p>
     </div>
     <a class="buttonlike ghost" href="{{ url_for('reservations_page') }}">查看全部预约</a>
   </div>

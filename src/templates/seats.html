@@ -4,7 +4,7 @@
 <section class="panel">
   <h2>查询空闲座位</h2>
   <div class="filter-grid">
-    <label>楼栋<input id="f-building" placeholder="如：图书馆"></label>
+    <label>楼栋<input id="f-building" placeholder="如：北区一号楼"></label>
     <label>自习室
       <select id="f-room">
         <option value="">全部</option>
@@ -49,7 +49,7 @@
 
 {% if can_book %}
 <section class="panel" id="reserve-panel" hidden>
-  <h2>提交预约（UC-04 / FR-03）</h2>
+  <h2>提交预约</h2>
   <div id="selected-summary" class="selected-summary"></div>
   <div class="row">
     <button class="act" id="btn-reserve" type="button">确认预约所选座位</button>

@@ -43,7 +43,7 @@ def test_ac_06_03_admin_only_sees_authorized_room_records(
     client, login_as, db_query, db_execute
 ):
     student_id = get_user_id(db_query)
-    seed_room = db_query("SELECT id FROM rooms WHERE code='R-LIB-3F'")[0]["id"]
+    seed_room = db_query("SELECT id FROM rooms WHERE code='R-N1-101'")[0]["id"]
     other = create_unassigned_room(db_execute)
     make_reservation(
         db_query, db_execute, user_id=student_id, seat_id=get_seat_id(db_query, "A-01"),
@@ -61,7 +61,7 @@ def test_ac_06_03_admin_only_sees_authorized_room_records(
     assert body["pagination"]["total"] == 1
     assert body["items"][0]["room_id"] == seed_room
     assert all(item["room_id"] == seed_room for item in body["items"])
-    assert body["items"][0]["room_name"] == "图书馆三层自习室"
+    assert body["items"][0]["room_name"] == "北区一号楼101教室"
 
 
 def test_ac_06_04_pagination_preserves_filters(client, login_as, db_query, db_execute):
